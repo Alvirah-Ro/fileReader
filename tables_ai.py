@@ -1,16 +1,10 @@
-""" 
-Using Strealit framework to read a table from a pdf invoice
-and display the table with sortable columns 
+"""
+Using pdfplumber to extract tables from an invoice
 """
 
-import streamlit as st
 import pdfplumber
 import pandas as pd
-import numpy as np
 
-st.title('Sortable Tables from Invoices')
-
-st.pdf("Invoice_1479909_e209944.pdf", height=500)
 
 def extract_tables_with_pdfplumber(pdf_path):
     """Extract tables using pdfplumber library"""
@@ -72,18 +66,4 @@ def extract_tables_with_pdfplumber(pdf_path):
 
 tables = extract_tables_with_pdfplumber("Invoice_1479909_e209944.pdf")
 
-# Display results
-if tables and len(tables) > 0:
-    st.write(f"Found {len(tables)} table(s) in the PDF")
-    
-    # Display each table separately
-    for i, df in enumerate(tables):
-        st.write(f"## Table {i+1}")
-        try:
-            st.dataframe(df)
-        except Exception as e:
-            st.error(f"Error displaying table {i+1}: {e}")
-            st.write("Raw table data:")
-            st.write(df)
-else:
-    st.error("No tables were extracted from the PDF")
+print(tables)
