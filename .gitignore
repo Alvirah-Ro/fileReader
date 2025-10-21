@@ -1,0 +1,18 @@
+# Invoices
+.pdf
+Invoice_*.pdf
+
+# Virtual Environment
+.venv
+
+# Python cache files
+__pycache__/
+
+# Python compiled files
+*.pyc, *.pyo 
+
+# mac OS system files
+.DS_Store
+
+# output csv files
+*.csv  

@@ -24,8 +24,7 @@ if uploaded_file is not None:
     headers = ['Edition', 'Location', 'Title', 'Order', 'Ship', 'BO', 'List', 'Disc', 'Net', 'Extension']
 
     for idx, row_data in df.iterrows():
-        if idx == 0: # Skip the header row since it's mixed in with data
-            continue
+        if idx > 0: # Skip the header row since it's mixed in with data
 
         text = str(row_data[col_name])
 
@@ -33,9 +32,13 @@ if uploaded_file is not None:
         parts = re.split(r'\s{2,}', text)
         parts = [p.strip() for p in parts if p.strip()]
 
+        st.write(f"There are {len(parts)} parts.  Here they are:", parts)
+
         # If we have enough parts, this looks like a valid row
         if len(parts) >=6: # At least Edition, Title, and some numbers
             cleaned_rows.append(parts)
+
+        st.write("the cleaned rows are:", cleaned_rows)
 
     # Create clean DataFrame
     if cleaned_rows:

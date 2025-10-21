@@ -5,6 +5,7 @@ More simple automated PDF table extractor
 import streamlit as st
 import pdfplumber
 import pandas as pd
+import re
 
 st.title('Automated PDF Table Extractor')
 
@@ -14,6 +15,9 @@ uploaded_file = st.file_uploader("Upload a PDF invoice", type="pdf")
 if uploaded_file is not None:
     with pdfplumber.open(uploaded_file) as pdf:
         all_tables = []
+
+        page_text = pdf.pages[0].extract_text()
+        st.text_area("Raw text (first 1000 chars):", page_text[:1000])
 
         for page in pdf.pages:
             tables = page.extract_tables()
@@ -25,6 +29,46 @@ if uploaded_file is not None:
 
         if all_tables:
             st.success(f"Found {len(all_tables)} table(s)")
+
+            if len(all_tables) >= 3:
+                table_3 = all_tables[2]
+
+                # st.write("Table 3 shape:", table_3.shape)
+                # st.write("Table 3 columns:", table_3.columns.tolist())
+                # st.write("First few cells:")
+                # st.write("Row 0, Col 0:", table_3.iloc[0, 0], type(table_3.iloc[0, 0]))
+                # st.write("Row 1, Col 0:", table_3.iloc[1, 0], type(table_3.iloc[1, 0]))
+                # st.write("Column name 0:", table_3.columns[0], type(table_3.columns[0]))
+
+                header_text = table_3.iloc[0, 0]
+                header_parts = re.split(r'\s+(?!#)', header_text)
+                if "Location" in header_parts:
+                    header_parts.remove("Location")
+                # temp_split = header_text.split()
+                # header_parts = [f"{temp_split[0]} {temp_split[1]}"] + temp_split[2:]
+                st.write("Original header:", header_text)
+                st.write("Split header parts:", header_parts)
+
+                cleaned_rows = []
+
+                # for idx, row in table_3.iterrows():
+                #     if idx >0:
+
+                #         row_data = str(row.iloc[0]).strip()
+                #         row_parts = row_data.split()
+                #         if len(row_parts) >= 6:
+                #             cleaned_rows.append(row_parts)
+                
+                # if cleaned_rows:
+                #     max_cols = len(header_parts)
+
+                # clean_table = pd.DataFrame(cleaned_rows, columns=header_parts)
+
+                # st.write("### Cleaned Table 3:")
+                # st.dataframe(clean_table, width="stretch")
+
+
+
 
             for i, df in enumerate(all_tables, 1):
                 st.write(f"### Table {i}")
