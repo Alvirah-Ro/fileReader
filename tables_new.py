@@ -67,7 +67,7 @@ if uploaded_file is not None:
                         st.write("Splitting the row data in 2 parts:", parts)
                         
                         remaining_data = parts[1]
-                        remaining_parts = re.split(r'\s(?=\d)', remaining_data)
+                        remaining_parts = remaining_data.rsplit(' ', 6)
                         remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
                         st.write("Row Data starting with title info:", remaining_parts)
                         
@@ -94,6 +94,20 @@ if uploaded_file is not None:
                         padded_rows.append(padded_row)
 
                 clean_table = pd.DataFrame(padded_rows, columns=header_parts)
+
+                # Clean the title column to remove any location codes if present
+                def clean_title(title_text):
+                    if pd.isna(title_text) or not title_text:
+                        return title_text
+                    
+                    # Split and check if first part looks like a location code
+                    title_parts = str(title_text).split()
+                    if title_parts and len(title_parts[0]) <= 15 and '-' in title_parts and title_parts[0][0].isupper():
+                        return ' '.join(title_parts[1:]) # Remove first part (location code)
+                    return title_text
+                
+                # Apply cleaning to the Title column
+                clean_table ['Title'] = clean_table['Title'].apply(clean_table)
 
                 st.write("### Cleaned Table 3:")
                 st.dataframe(clean_table, width="stretch")
