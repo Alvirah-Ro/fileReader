@@ -58,6 +58,10 @@ if uploaded_file is not None:
                 for idx, row in table_3.iterrows():
                     if idx > 0:
                         row_data = str(row.iloc[0]).strip()
+                            # Split on newlines and take the last part (the current line)
+                        if '\n' in row_data:
+                            row_data = row_data.split('\n')[-1] # Take the last line
+                        st.write("Original row data:", row_data)
                         # Separating the Edition number in the first column from the rest of the data
                         parts = row_data.split(' ', 1)
                         st.write("Splitting the row data in 2 parts:", parts)
@@ -78,7 +82,18 @@ if uploaded_file is not None:
                 if cleaned_rows:
                     max_cols = len(header_parts)
 
-                clean_table = pd.DataFrame(cleaned_rows, columns=header_parts)
+                    # Pad or trim each row to match header count
+                    padded_rows = []
+                    for row in cleaned_rows:
+                        if len(row) < max_cols:
+                            # Pad with empty strings
+                            padded_row = row + [''] * (max_cols - len(row))
+                        else:
+                            # Trim to fit
+                            padded_row = row[:max_cols]
+                        padded_rows.append(padded_row)
+
+                clean_table = pd.DataFrame(padded_rows, columns=header_parts)
 
                 st.write("### Cleaned Table 3:")
                 st.dataframe(clean_table, width="stretch")
