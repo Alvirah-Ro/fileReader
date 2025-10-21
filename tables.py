@@ -6,7 +6,6 @@ and display the table with sortable columns
 import streamlit as st
 import pdfplumber
 import pandas as pd
-
 st.title('Sortable Tables from Invoices')
 
 # File uploader for PDF invoice
