@@ -42,8 +42,11 @@ if uploaded_file is not None:
 
                 header_text = table_3.iloc[0, 0]
                 header_parts = re.split(r'\s+(?!#)', header_text)
+                # Remove columns for Location (not needed) and BO (often empty)
                 if "Location" in header_parts:
                     header_parts.remove("Location")
+                if "BO" in header_parts:
+                    header_parts.remove("BO")
                 # temp_split = header_text.split()
                 # header_parts = [f"{temp_split[0]} {temp_split[1]}"] + temp_split[2:]
                 st.write("Original header:", header_text)
@@ -51,21 +54,34 @@ if uploaded_file is not None:
 
                 cleaned_rows = []
 
-                # for idx, row in table_3.iterrows():
-                #     if idx >0:
+                # Try to split data by patterns using numbers as column boundaries
+                for idx, row in table_3.iterrows():
+                    if idx > 0:
+                        row_data = str(row.iloc[0]).strip()
+                        # Separating the Edition number in the first column from the rest of the data
+                        parts = row_data.split(' ', 1)
+                        st.write("Splitting the row data in 2 parts:", parts)
+                        
+                        remaining_data = parts[1]
+                        remaining_parts = re.split(r'\s(?=\d)', remaining_data)
+                        remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
+                        st.write("Row Data starting with title info:", remaining_parts)
+                        
+                        st.write("First part:", parts[0])
+                        remaining_parts.insert(0, parts[0])
+                        st.write("Final Parts put back together:", remaining_parts)
+                        
 
-                #         row_data = str(row.iloc[0]).strip()
-                #         row_parts = row_data.split()
-                #         if len(row_parts) >= 6:
-                #             cleaned_rows.append(row_parts)
+                        if len(remaining_parts) >= 6:
+                            cleaned_rows.append(remaining_parts)
                 
-                # if cleaned_rows:
-                #     max_cols = len(header_parts)
+                if cleaned_rows:
+                    max_cols = len(header_parts)
 
-                # clean_table = pd.DataFrame(cleaned_rows, columns=header_parts)
+                clean_table = pd.DataFrame(cleaned_rows, columns=header_parts)
 
-                # st.write("### Cleaned Table 3:")
-                # st.dataframe(clean_table, width="stretch")
+                st.write("### Cleaned Table 3:")
+                st.dataframe(clean_table, width="stretch")
 
 
 
