@@ -64,19 +64,55 @@ if uploaded_file is not None:
                         # st.write("Original row data:", row_data)
                         # Separating the Edition number in the first column from the rest of the data
                         parts = row_data.split(' ', 1)
-                        # st.write("Splitting the row data in 2 parts:", parts)
+                        st.write("Splitting the row data in 2 parts:", parts)
                         
+                        # The rest of the data without the Edition number
                         remaining_data = parts[1]
+                        # Right Split by spaces up to 6 splits (split from end of data to maintain title info stays together)
                         remaining_parts = remaining_data.rsplit(' ', 6)
                         remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
-                        # st.write("Row Data starting with title info:", remaining_parts)
-                        
-                        # st.write("First part:", parts[0])
-                        remaining_parts.insert(0, parts[0])
-                        # st.write("Final Parts put back together:", remaining_parts)
-                        
+                        st.write("Row Data starting with title info:", remaining_parts)
+                        st.write(f"Remaining Parts repr: {repr(remaining_parts)}")
 
-                        if len(remaining_parts) >= 6:
+                        # Fix Backordered items that won't have data in all the columns
+                        st.write("Last 2 columns:", remaining_parts[-2], remaining_parts[-1])
+                        if (len(remaining_parts) >= 2 and
+                            # Check if last item and second-to-last item are not prices
+                            not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]) and
+                            not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])):
+                            special_parts = remaining_parts.copy()
+                            st.write("Here is a copy of the BO item parts:", special_parts)
+                            joined_special_parts = ' '.join(special_parts)
+                            st.write("Rejoining parts:", joined_special_parts)
+                            
+                            # Split title from number ordered by number pattern
+                            split_result = re.split(r'\s(\d{1,3})\s', joined_special_parts, 1)
+
+                            if len(split_result) >= 3:
+                                # First part is the title, second part is the number ordered, don't keep anything else
+                                title = split_result[0].strip()
+                                order_number = split_result[1].strip()
+
+                                bo_parts = [title, order_number]
+                                st.write("Reduced parts for BO:", bo_parts)
+
+                                # Add message that item is on BO
+                                bo_parts.append("Backordered Item")
+                                st.write("Reduced parts for BO with BO label:", bo_parts)
+                                # Reassign to remaining_parts
+                                remaining_parts = bo_parts
+                            else:
+                                st.write("Could not split on number pattern")
+
+                        else:
+                            final_parts = remaining_parts.copy()
+                                                    
+                        st.write("First part:", parts[0])
+                        # Put Edition # part and all other split parts back together
+                        remaining_parts.insert(0, parts[0])
+                        st.write("Final Parts put back together:", remaining_parts)
+
+                        if len(remaining_parts) >= 3:
                             cleaned_rows.append(remaining_parts)
                 
                 if cleaned_rows:
