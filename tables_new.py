@@ -61,19 +61,19 @@ if uploaded_file is not None:
                             # Split on newlines and take the last part (the current line)
                         if '\n' in row_data:
                             row_data = row_data.split('\n')[-1] # Take the last line
-                        st.write("Original row data:", row_data)
+                        # st.write("Original row data:", row_data)
                         # Separating the Edition number in the first column from the rest of the data
                         parts = row_data.split(' ', 1)
-                        st.write("Splitting the row data in 2 parts:", parts)
+                        # st.write("Splitting the row data in 2 parts:", parts)
                         
                         remaining_data = parts[1]
                         remaining_parts = remaining_data.rsplit(' ', 6)
                         remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
-                        st.write("Row Data starting with title info:", remaining_parts)
+                        # st.write("Row Data starting with title info:", remaining_parts)
                         
-                        st.write("First part:", parts[0])
+                        # st.write("First part:", parts[0])
                         remaining_parts.insert(0, parts[0])
-                        st.write("Final Parts put back together:", remaining_parts)
+                        # st.write("Final Parts put back together:", remaining_parts)
                         
 
                         if len(remaining_parts) >= 6:
@@ -94,20 +94,16 @@ if uploaded_file is not None:
                         padded_rows.append(padded_row)
 
                 clean_table = pd.DataFrame(padded_rows, columns=header_parts)
-
-                # Clean the title column to remove any location codes if present
-                def clean_title(title_text):
-                    if pd.isna(title_text) or not title_text:
-                        return title_text
-                    
-                    # Split and check if first part looks like a location code
-                    title_parts = str(title_text).split()
-                    if title_parts and len(title_parts[0]) <= 15 and '-' in title_parts and title_parts[0][0].isupper():
-                        return ' '.join(title_parts[1:]) # Remove first part (location code)
-                    return title_text
                 
+                # Debug
+                st.write("Debug - Title column data:")
+                for i, title in enumerate(clean_table['Title'].head(3)):
+                    st.write(f"Row {i}: '{title}' (type: {type(title)})")
+                    st.write(f"Row {i} repr: {repr(title)}")
+
                 # Apply cleaning to the Title column
-                clean_table ['Title'] = clean_table['Title'].apply(clean_table)
+                clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^[A-Z]\xad[A-Z0-9]+\xad[A-Z0-9]', '', regex=True)
+                clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^/[A-Z0-9]+\xad[A-Z0-9]+', '', regex=True)
 
                 st.write("### Cleaned Table 3:")
                 st.dataframe(clean_table, width="stretch")
