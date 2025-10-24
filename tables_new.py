@@ -54,24 +54,31 @@ if uploaded_file is not None:
             for table_index, table in enumerate(main_tables):
                 st.write(f"Processing table {table_index}")
                 # Get the headers from the first main table
-                table_1 = main_tables[0]
-                header_text = table_1.iloc[0, 0]
-                header_parts = re.split(r'\s+(?!#)', header_text)
-                # Remove columns for Location (not needed) and BO (often empty)
-                if "Location" in header_parts:
-                    header_parts.remove("Location")
-                if "BO" in header_parts:
-                    header_parts.remove("BO")
-                # temp_split = header_text.split()
-                # header_parts = [f"{temp_split[0]} {temp_split[1]}"] + temp_split[2:]
-                # st.write("Original header:", header_text)
-                # st.write("Split header parts:", header_parts)
+                if table_index == 0:
+                    header_text = table.iloc[0, 0]
+                    header_parts = re.split(r'\s+(?!#)', header_text)
+                    # Remove columns for Location (not needed) and BO (often empty)
+                    if "Location" in header_parts:
+                        header_parts.remove("Location")
+                    if "BO" in header_parts:
+                        header_parts.remove("BO")
+
+                    # Drop the first row from the first table after extracting header info
+                    table = table.iloc[1:]
+                    
+                    # temp_split = header_text.split()
+                    # header_parts = [f"{temp_split[0]} {temp_split[1]}"] + temp_split[2:]
+                    # st.write("Original header:", header_text)
+                    # st.write("Split header parts:", header_parts)
 
                 cleaned_rows = []
 
                 # Try to split data by patterns using numbers as column boundaries
                 for idx, row in table.iterrows():
-                    if idx > 0:
+                    # This (if idx > 0) was originally to remove any duplicate headers,
+                    # but the headers only need to be removed on the page 1 table,
+                    # otherwise it was skipping rows of actual data
+                    if idx >= 0:
                         row_data = str(row.iloc[0]).strip()
                             # Split on newlines and take the last part (the current line)
                         if '\n' in row_data:
@@ -156,7 +163,7 @@ if uploaded_file is not None:
                 st.dataframe(clean_table, width="stretch")
 
             if clean_tables_list:
-                combined_clean_table = pd.concat(clean_tables_list, ignore_index=True)  
+                combined_clean_table = pd.concat(clean_tables_list, ignore_index=True) 
                 st.write("### All Main Tables Combined:")
                 st.dataframe(combined_clean_table, width="stretch")
 
