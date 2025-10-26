@@ -65,7 +65,7 @@ if uploaded_file is not None:
 
                     # Drop the first row from the first table after extracting header info
                     table = table.iloc[1:]
-                    
+
                     # temp_split = header_text.split()
                     # header_parts = [f"{temp_split[0]} {temp_split[1]}"] + temp_split[2:]
                     # st.write("Original header:", header_text)
@@ -81,6 +81,7 @@ if uploaded_file is not None:
                     if idx >= 0:
                         row_data = str(row.iloc[0]).strip()
                             # Split on newlines and take the last part (the current line)
+                            # Some of the Edition numbers were showing up in multiple rows without this code
                         if '\n' in row_data:
                             row_data = row_data.split('\n')[-1] # Take the last line
                         # st.write("Original row data:", row_data)
@@ -98,10 +99,14 @@ if uploaded_file is not None:
 
                         # Fix Backordered items that won't have data in all the columns
                         # st.write("Last 2 columns:", remaining_parts[-2], remaining_parts[-1])
+                        st.write("remaining_parts =", remaining_parts)
+                        st.write("Length of remaining_parts >= 2?", len(remaining_parts) >= 2)
+                        st.write("Are the last 2 items prices?", re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]))
                         if (len(remaining_parts) >= 2 and
                             # Check if last item and second-to-last item are not prices
                             not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]) and
                             not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])):
+                            
                             special_parts = remaining_parts.copy()
                             # st.write("Here is a copy of the BO item parts:", special_parts)
                             joined_special_parts = ' '.join(special_parts)
@@ -109,6 +114,23 @@ if uploaded_file is not None:
                             
                             # Split title from number ordered by number pattern
                             split_result = re.split(r'\s(\d{1,3})\s', joined_special_parts, 1)
+                            st.write("Results after splitting title from number ordered:", split_result)
+                            # Split on first space only to separate location data from title
+                            title_part = split_result[0] # Get title string from previous split
+                            location_title_split = title_part.split(' ', 1) # split on first space only
+                            st.write("Location and title separated:", location_title_split)
+
+                            if len(location_title_split) >= 2:
+                                location_data = location_title_split[0]
+                                title_only = location_title_split[1]
+
+                                st.write("Location:", location_data)
+                                st.write("Title only", title_only)
+
+                                # Replace the first part of split_result with clean title
+                                split_result[0] = title_only
+
+                                st.write("Results after splitting location data from title:", split_result)
 
                             if len(split_result) >= 3:
                                 # First part is the title, second part is the number ordered, don't keep anything else
@@ -128,8 +150,9 @@ if uploaded_file is not None:
 
                         else:
                             final_parts = remaining_parts.copy()
+                            st.write("Length condition is false")
                                                     
-                        # t.write("First part:", parts[0])
+                        # st.write("First part:", parts[0])
                         # Put Edition # part and all other split parts back together
                         remaining_parts.insert(0, parts[0])
                         # st.write("Final Parts put back together:", remaining_parts)
@@ -155,9 +178,13 @@ if uploaded_file is not None:
                     # Add cleaned table to list of all cleaned tables
                     clean_tables_list.append(clean_table)
 
-                    # Apply cleaning to the Title column
-                    clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^[A-Z]\xad[A-Z0-9]+\xad[A-Z0-9]', '', regex=True)
-                    clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^/[A-Z0-9]+\xad[A-Z0-9]+', '', regex=True)
+                    # Apply cleaning to the Title column to remove unwanted location data
+                    # st.write(f"Title info before any cleaning of location data repr: {repr(clean_table['Title'])}")
+                    # clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^[A-Z]\xad[A-Z0-9]+\xad[A-Z0-9]', '', regex=True)
+                    # st.write(f"Title info after first cleaning repr: {repr(clean_table['Title'])}")
+                    # clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^/[A-Z0-9]+\xad[A-Z0-9]+', '', regex=True)
+                    # st.write(f"Title info after second cleaning repr: {repr(clean_table['Title'])}")
+
 
                 st.write(f"### Cleaned Main Table", table_index)
                 st.dataframe(clean_table, width="stretch")
