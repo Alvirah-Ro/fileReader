@@ -113,6 +113,7 @@ if uploaded_file is not None:
                             not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])):
                             special_parts = remaining_parts.copy()
                             st.write("Here is a copy of the BO item parts:", special_parts)
+                            # Re-join BO parts back together to split them apart differently
                             joined_special_parts = ' '.join(special_parts)
                             st.write("Rejoining parts of BO item:", joined_special_parts)
                             
@@ -140,41 +141,56 @@ if uploaded_file is not None:
                                 # First part is the title, second part is the number ordered, don't keep anything else
                                 title = split_result[0].strip()
                                 order_number = split_result[1].strip()
-
                                 bo_parts = [title, order_number]
                                 # st.write("Reduced parts for BO:", bo_parts)
+                            else: 
+                                # Fallback in case split fails
+                                bo_parts = [special_parts[0], "Unknown"]
+                                st.write("Split didn't work on BO items")
 
-                                # Add message that item is on BO
-                                bo_parts.append("Backordered Item")
-                                # st.write("Reduced parts for BO with BO label:", bo_parts)
-                                # Reassign to remaining_parts
-                                remaining_parts = bo_parts
-                            else:
-                                st.write("Could not split on number pattern")
+                            # Add message that item is on BO
+                            bo_parts.append("Backordered Item")
+                            st.write("The backordered parts put back together:", bo_parts)
+                            # st.write("Reduced parts for BO with BO label:", bo_parts)
+                            # Reassign to remaining_parts
+                            remaining_parts = bo_parts
+                            st.write("bo_parts assigned to remaining_parts:", remaining_parts)
 
-                        else:
-                            final_parts = remaining_parts.copy()                                                    
                         # st.write("First part:", parts[0])
                         # Put Edition # part and all other split parts back together
                         remaining_parts.insert(0, parts[0])
-                        # st.write("Final Parts put back together:", remaining_parts)
+                        st.write("Final Parts put back together after inserting parts[0]:", remaining_parts)
+                        st.write("Length check - len(remaining_parts) >=3?", len(remaining_parts) >= 3)
 
                         if len(remaining_parts) >= 3:
+                            st.write("Before appending: cleaned_rows has:", len(cleaned_rows), "items")
+                            st.write("Adding this row:", remaining_parts)
                             cleaned_rows.append(remaining_parts)
+                            st.write("After appending: cleaned_rows now has", len(cleaned_rows), "items")
+                            st.write("Last item in cleaned_rows:", cleaned_rows[-1])
+                        else:
+                            st.write("Not adding - remaining_parts too short:", remaining_parts, "Length:", len(remaining_parts))
                         
                 if cleaned_rows:
+                    st.write("Creating Dataframe from cleaned_rows with", len(cleaned_rows), "items:")
+                    for idx, row in enumerate(cleaned_rows):
+                        st.write(f"Row {idx}: {row}")
+
                     max_cols = len(header_parts)
 
                     # Pad or trim each row to match header count
                     padded_rows = []
                     for row in cleaned_rows:
+                        st.write("Before padding rows there are:", len(cleaned_rows), "rows")
                         if len(row) < max_cols:
                             # Pad with empty strings
                             padded_row = row + [''] * (max_cols - len(row))
+                            st.write(f"After padding row {row} there are {len(padded_row)} columns")
                         else:
                             # Trim to fit
                             padded_row = row[:max_cols]
-                            padded_rows.append(padded_row)
+                        padded_rows.append(padded_row)
+                    st.write("Final Padded Rows:", padded_rows)
 
                     clean_table = pd.DataFrame(padded_rows, columns=header_parts)
                     # Add cleaned table to list of all cleaned tables
