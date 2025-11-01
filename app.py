@@ -77,7 +77,7 @@ if uploaded_file is not None:
                 for idx, row in table.iterrows():
                     # This (if idx > 0) was originally to remove any duplicate headers,
                     # but the headers only need to be removed on the page 1 table,
-                    # otherwise it was skipping rows of actual data
+                    # otherwise it was skipping rows of actual data so I canged it to >= 0
                     if idx >= 0:
                         row_data = str(row.iloc[0]).strip()
                             # Split on newlines and take the last part (the current line)
@@ -94,23 +94,27 @@ if uploaded_file is not None:
                         # Right Split by spaces up to 6 splits (split from end of data to maintain title info stays together)
                         remaining_parts = remaining_data.rsplit(' ', 6)
                         remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
-                        # st.write("Row Data starting with title info:", remaining_parts)
+                        st.write("Row Data starting with title info:", remaining_parts)
                         # st.write(f"Remaining Parts repr: {repr(remaining_parts)}")
 
                         # Fix Backordered items that won't have data in all the columns
-                        # st.write("Last 2 columns:", remaining_parts[-2], remaining_parts[-1])
+                        st.write("Last 2 columns:", remaining_parts[-2], remaining_parts[-1])
                         st.write("remaining_parts =", remaining_parts)
-                        st.write("Length of remaining_parts >= 2?", len(remaining_parts) >= 2)
-                        st.write("Are the last 2 items prices?", re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]))
+                        if len(remaining_parts) >= 2:
+                            st.write("Is the last item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1])))
+                            st.write("Is the penultimate item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])))
+                        else:
+                            st.write("Not enough items to check if last 2 are prices")
+
                         if (len(remaining_parts) >= 2 and
                             # Check if last item and second-to-last item are not prices
+                            # If they are not prices, then the item is on backorder
                             not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]) and
                             not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])):
-                            
                             special_parts = remaining_parts.copy()
-                            # st.write("Here is a copy of the BO item parts:", special_parts)
+                            st.write("Here is a copy of the BO item parts:", special_parts)
                             joined_special_parts = ' '.join(special_parts)
-                            # st.write("Rejoining parts:", joined_special_parts)
+                            st.write("Rejoining parts of BO item:", joined_special_parts)
                             
                             # Split title from number ordered by number pattern
                             split_result = re.split(r'\s(\d{1,3})\s', joined_special_parts, 1)
@@ -149,9 +153,7 @@ if uploaded_file is not None:
                                 st.write("Could not split on number pattern")
 
                         else:
-                            final_parts = remaining_parts.copy()
-                            st.write("Length condition is false")
-                                                    
+                            final_parts = remaining_parts.copy()                                                    
                         # st.write("First part:", parts[0])
                         # Put Edition # part and all other split parts back together
                         remaining_parts.insert(0, parts[0])
@@ -190,7 +192,11 @@ if uploaded_file is not None:
                 st.dataframe(clean_table, width="stretch")
 
             if clean_tables_list:
-                combined_clean_table = pd.concat(clean_tables_list, ignore_index=True) 
+                combined_clean_table = pd.concat(clean_tables_list, ignore_index=True)
+                # Force all columns to be treated as text in Excel (this is not currenlty working in Numbers)
+                for col in combined_clean_table.columns:
+                    combined_clean_table[col] = '"' + combined_clean_table[col].astype(str) + '"'
+
                 st.write("### All Main Tables Combined:")
                 st.dataframe(combined_clean_table, width="stretch")
 
