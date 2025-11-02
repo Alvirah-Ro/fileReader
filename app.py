@@ -57,11 +57,9 @@ if uploaded_file is not None:
                 if table_index == 0:
                     header_text = table.iloc[0, 0]
                     header_parts = re.split(r'\s+(?!#)', header_text)
-                    # Remove columns for Location (not needed) and BO (often empty)
+                    # Remove columns for Location (not needed)
                     if "Location" in header_parts:
                         header_parts.remove("Location")
-                    if "BO" in header_parts:
-                        header_parts.remove("BO")
 
                     # Drop the first row from the first table after extracting header info
                     table = table.iloc[1:]
@@ -91,22 +89,57 @@ if uploaded_file is not None:
                         
                         # The rest of the data without the Edition number
                         remaining_data = parts[1]
-                        # Right Split by spaces up to 6 splits (split from end of data to maintain title info stays together)
-                        remaining_parts = remaining_data.rsplit(' ', 6)
+                        # Right Split by spaces up to 4 splits (split from end of data to maintain title info stays together)
+                        # 4 splits stops before the BO column
+                        remaining_parts = remaining_data.rsplit(' ', 4)
                         remaining_parts = [p.strip() for p in remaining_parts if p.strip()]
-                        st.write("Row Data starting with title info:", remaining_parts)
-                        st.write(f"Remaining Parts repr: {repr(remaining_parts)}")
+                        st.write("Row Data after splitting the last 4 columns", remaining_parts)
+                        # DEBUG st.write(f"Remaining Parts repr: {repr(remaining_parts)}")
+
+                        # Get the first item (title + all numbers)
+                        title_and_numbers = remaining_parts[0]
+                        st.write("title_and_numbers:", title_and_numbers)
+                        st.write("Everything else:", remaining_parts[1:])
+
+                        # Right split to try and find 3 numbers in case of partial orders
+                        number_parts = title_and_numbers.rsplit(' ', 3)
+                        st.write("Row data after trying to split off 3 numbers from the end of the title:", number_parts)
+                        # If there are not 3 numbers, the second part will not be a number, it will be part of the title
+                        if not number_parts[1].isdigit():
+                            title_part = [" ".join(number_parts[:2])]
+                            st.write("Rejoined title part if there were only 2 numbers:", title_part)
+                            final_number_parts = number_parts[-2:]
+                            # Add an empty string to go in the BO column if all were shipped and none were backordered
+                            final_number_parts.append(' ')
+                            st.write("The final number parts after adding a BO column are:", final_number_parts)
+
+                            # Check if the final_number_parts are all numbers
+                            if not final_number_parts[0].isdigit():
+                                st.write("The first final number is not a number:", final_number_parts[0])
+                                # TO DO: move other backorder logic here to handle all BOs earlier
+
+                            # Add title to new number parts to remaining columns
+                            remaining_parts = title_part + final_number_parts + remaining_parts[1:]
+                            st.write("After adding everything back together:", remaining_parts)
+
+                        else:
+                            st.write(f"* There are 3 numbers so this is a partial backorder for item {number_parts[0]}")
+                            # No need to do anything else, title is already separate from 3 numbers
+                            # Add number_parts (which includes a title part) to remaining columns
+                            remaining_parts = number_parts + remaining_parts[1:]
+                            st.write("After adding everything back together for partial backordered items:", remaining_parts)
+
 
                         # Fix Backordered items that won't have data in all the columns
                         #st.write("Last 2 columns:", remaining_parts[-2], remaining_parts[-1])
                         # st.write("remaining_parts =", remaining_parts)
                         # DEBUG 
-                        if len(remaining_parts) >= 2:
-                            st.write("Is the last item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1])))
-                            st.write("Is the penultimate item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])))
+                        # if len(remaining_parts) >= 2:
+                            # st.write("Is the last item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1])))
+                            # st.write("Is the penultimate item a price?", bool(re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2])))
                         # DEBUG 
-                        else:
-                            st.write("Not enough items to check if last 2 are prices")
+                        # else:
+                            # st.write("Not enough items to check if last 2 are prices")
 
                         if (len(remaining_parts) >= 2 and
                             # Check if last item and second-to-last item are not prices
