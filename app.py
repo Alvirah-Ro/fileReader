@@ -176,11 +176,24 @@ if uploaded_file is not None:
                             
 
                         else:
-                            st.write(f"* There are 3 numbers so this is a partial backorder for item {number_parts[0]}")
+                            st.write(f"* There are 3 numbers so this could be a partial backorder for item {number_parts[0]}")                                
+
                             # No need to do anything else, title is already separate from 3 numbers
                             # Add number_parts (which includes a title part) to remaining columns
                             remaining_parts = number_parts + remaining_parts[1:]
                             st.write("After adding everything back together for partial backordered items:", remaining_parts)
+                            # Check if ther is a number at the end of the title that is in the wrong column
+                            if (number_parts[1] != number_parts[2] and number_parts[2] == number_parts[3]):
+                                st.write("The first and second numbers are different, the second and third numbers are the same:", number_parts[1:4])
+                                st.write("The first number might be part of the title")
+                                title_part = [" ".join(number_parts[:2])]
+                                st.write("Correcting the title part:", title_part)
+                                st.write("Remaining_parts:", remaining_parts[2:])
+                                remaining_parts = title_part + remaining_parts[2:]
+                                # Add the empty backorder column
+                                remaining_parts.insert(3, " ")
+                                st.write("Final Data with corrected title:", remaining_parts)
+
 
 
                         # Fix Backordered items that won't have data in all the columns
