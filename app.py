@@ -82,7 +82,7 @@ if uploaded_file is not None:
                             # Some of the Edition numbers were showing up in multiple rows without this code
                         if '\n' in row_data:
                             row_data = row_data.split('\n')[-1] # Take the last line
-                        # st.write("Original row data:", row_data)
+                        st.write("Original row data:", row_data)
                         # Separating the Edition number in the first column from the rest of the data
                         parts = row_data.split(' ', 1)
                         # st.write("Splitting the row data in 2 parts:", parts)
@@ -105,12 +105,55 @@ if uploaded_file is not None:
                         number_parts = title_and_numbers.rsplit(' ', 3)
                         st.write("Row data after trying to split off 3 numbers from the end of the title:", number_parts)
                         # If there are not 3 numbers, the second part will not be a number, it will be part of the title
+                        
+                        # DEBUG - checking for title information in wrong parts
                         if not number_parts[1].isdigit():
+                            st.write("This is not a number in index 1:", number_parts[1])
+                        if not number_parts[2].isdigit():
+                            st.write("This is not a number in index 2:", number_parts[2])
+
+                        # If neither are a number, then it is all title information
+                        if (not number_parts[1].isdigit() and not number_parts[2].isdigit()):
+                            title_part = [" ".join(number_parts[:3])]
+                            final_number_parts = [number_parts[3]]
+                            st.write("Rejoined title part if there were no numbers:", title_part)
+                            st.write("The remaining parts are:", final_number_parts)
+                            final_parts = title_part + final_number_parts + remaining_parts[1:]
+                            st.write("Final parts put together:", final_parts)
+                            # Check if there is still title information lingering in the order column
+                            if not final_parts[1].isdigit():
+                                st.write("This is not a number in index 1:", final_parts[1])
+                                new_title_part = [" ".join(final_parts[:2])]
+                                st.write("New rejoined title part:", new_title_part)
+                                final_parts = new_title_part + remaining_parts[2:]
+                                st.write("Final parts again:", final_parts)
+
+                            if (len(final_parts) >= 2 and
+                                # Check if last item and second-to-last item are not prices
+                                # If they are not prices, then the item is on backorder
+                                (not re.match(r'^\d{1,3}\.\d{2}', final_parts[-1]) or
+                                not re.match(r'^\d{1,3}\.\d{2}', final_parts[-2]))):
+                                st.write("This is a backordered item: remaining_parts for BOs:", final_parts)
+                                # Insert a shipped column because the second number is the amount backordered
+                                final_parts.insert(2, " ")
+                                st.write("After inserting an empty column for shipped quantity:", final_parts)
+
+                                # Insert another column if there is not a list price
+                                if re.search(r'%', final_parts[4]):
+                                    st.write("There is a precentage in index 4 for this item:", final_parts[4])
+                                    # Insert another column if there is not a list price
+                                    final_parts.insert(4, " ")
+                                    st.write("Adding another column because there was no list price", final_parts)
+                                # Reassign to remaining_parts
+                                remaining_parts = final_parts
+                                st.write("This should be our final data for any backordered items:", final_parts)
+
+                        elif not number_parts[1].isdigit():
                             title_part = [" ".join(number_parts[:2])]
                             st.write("Rejoined title part if there were only 2 numbers:", title_part)
                             final_number_parts = number_parts[-2:]
                             # Add an empty string to go in the BO column if all were shipped and none were backordered
-                            final_number_parts.append(' ')
+                            final_number_parts.append(" ")
                             st.write("The final number parts after adding a BO column are:", final_number_parts)
 
                             # Check if the final_number_parts are all numbers
@@ -121,6 +164,16 @@ if uploaded_file is not None:
                             # Add title to new number parts to remaining columns
                             remaining_parts = title_part + final_number_parts + remaining_parts[1:]
                             st.write("After adding everything back together:", remaining_parts)
+
+                            # Check if there is a number in the Order Column or if it is still title information
+                            if not remaining_parts[1].isdigit():
+                                st.write("This is not a number in the order column:", remaining_parts[1])
+                                more_title_part = [" ".join(remaining_parts[:2])]
+                                st.write("Rejoined title part:", more_title_part)
+                                remaining_parts = more_title_part + remaining_parts[2:]
+                                st.write("Trying to put back together again with fixed title:", remaining_parts)
+
+                            
 
                         else:
                             st.write(f"* There are 3 numbers so this is a partial backorder for item {number_parts[0]}")
@@ -141,56 +194,56 @@ if uploaded_file is not None:
                         # else:
                             # st.write("Not enough items to check if last 2 are prices")
 
-                        if (len(remaining_parts) >= 2 and
-                            # Check if last item and second-to-last item are not prices
-                            # If they are not prices, then the item is on backorder
-                            (not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]) or
-                            not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2]))):
-                            st.write("remaining_parts for BOs:", remaining_parts)
-                            special_parts = remaining_parts.copy()
-                            st.write("Here is a copy of the BO item parts:", special_parts)
-                            # Re-join BO parts back together to split them apart differently
-                            joined_special_parts = ' '.join(special_parts)
-                            # st.write("Rejoining parts of BO item:", joined_special_parts)
+                        # if (len(remaining_parts) >= 2 and
+                        #     # Check if last item and second-to-last item are not prices
+                        #     # If they are not prices, then the item is on backorder
+                        #     (not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-1]) or
+                        #     not re.match(r'^\d{1,3}\.\d{2}', remaining_parts[-2]))):
+                        #     st.write("remaining_parts for BOs:", remaining_parts)
+                        #     special_parts = remaining_parts.copy()
+                        #     st.write("Here is a copy of the BO item parts:", special_parts)
+                        #     # Re-join BO parts back together to split them apart differently
+                        #     joined_special_parts = ' '.join(special_parts)
+                        #     # st.write("Rejoining parts of BO item:", joined_special_parts)
                             
-                            # Split title from number ordered by number pattern
-                            split_result = re.split(r'\s(\d{1,3})\s', joined_special_parts, 1)
-                            # st.write("Results after splitting title from number ordered:", split_result)
-                            # Split on first space only to separate location data from title
-                            title_part = split_result[0] # Get title string from previous split
-                            location_title_split = title_part.split(' ', 1) # split on first space only
-                            # st.write("Location and title separated:", location_title_split)
+                        #     # Split title from number ordered by number pattern
+                        #     split_result = re.split(r'\s(\d{1,3})\s', joined_special_parts, 1)
+                        #     # st.write("Results after splitting title from number ordered:", split_result)
+                        #     # Split on first space only to separate location data from title
+                        #     title_part = split_result[0] # Get title string from previous split
+                        #     location_title_split = title_part.split(' ', 1) # split on first space only
+                        #     # st.write("Location and title separated:", location_title_split)
 
-                            if len(location_title_split) >= 2:
-                                location_data = location_title_split[0]
-                                title_only = location_title_split[1]
+                        #     if len(location_title_split) >= 2:
+                        #         location_data = location_title_split[0]
+                        #         title_only = location_title_split[1]
 
-                                # st.write("Location:", location_data)
-                                # st.write("Title only", title_only)
+                        #         # st.write("Location:", location_data)
+                        #         # st.write("Title only", title_only)
 
-                                # Replace the first part of split_result with clean title
-                                split_result[0] = title_only
+                        #         # Replace the first part of split_result with clean title
+                        #         split_result[0] = title_only
 
-                                # st.write("Results after splitting location data from title:", split_result)
+                        #         # st.write("Results after splitting location data from title:", split_result)
 
-                            if len(split_result) >= 3:
-                                # First part is the title, second part is the number ordered, don't keep anything else
-                                title = split_result[0].strip()
-                                order_number = split_result[1].strip()
-                                bo_parts = [title, order_number]
-                                # st.write("Reduced parts for BO:", bo_parts)
-                            else: 
-                                # Fallback in case split fails
-                                st.write("Split didn't work supposed BO items: Skipping Invalid Row:" , split_result)
-                                continue
+                        #     if len(split_result) >= 3:
+                        #         # First part is the title, second part is the number ordered, don't keep anything else
+                        #         title = split_result[0].strip()
+                        #         order_number = split_result[1].strip()
+                        #         bo_parts = [title, order_number]
+                        #         # st.write("Reduced parts for BO:", bo_parts)
+                        #     else: 
+                        #         # Fallback in case split fails
+                        #         st.write("Split didn't work supposed BO items: Skipping Invalid Row:" , split_result)
+                        #         continue
 
-                            # Add message that item is on BO
-                            bo_parts.append("Backordered Item")
-                            # st.write("The backordered parts put back together:", bo_parts)
-                            # st.write("Reduced parts for BO with BO label:", bo_parts)
-                            # Reassign to remaining_parts
-                            remaining_parts = bo_parts
-                            # st.write("bo_parts assigned to remaining_parts:", remaining_parts)
+                        #     # Add message that item is on BO
+                        #     bo_parts.append("Backordered Item")
+                        #     # st.write("The backordered parts put back together:", bo_parts)
+                        #     # st.write("Reduced parts for BO with BO label:", bo_parts)
+                        #     # Reassign to remaining_parts
+                        #     remaining_parts = bo_parts
+                        #     # st.write("bo_parts assigned to remaining_parts:", remaining_parts)
 
                         # st.write("First part:", parts[0])
                         # Put Edition # part and all other split parts back together
