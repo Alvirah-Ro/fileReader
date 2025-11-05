@@ -244,7 +244,11 @@ if uploaded_file is not None:
                     clean_tables_list.append(clean_table)
 
                     # Apply cleaning to the Title column to remove unwanted location data
-                    # st.write(f"Title info before any cleaning of location data repr: {repr(clean_table['Title'])}")
+                    st.write(f"Title info before any cleaning of location data repr: {repr(clean_table['Title'])}")
+                    # Create a mask - a boolean filter to identify which rows meet this condition
+                    mask = clean_table['Title'].str.match(r'^[A-Z]\xad[A-Z0-9]+\xad[A-Z0-9]', na=False)
+                    clean_table.loc[mask, 'Title'] = clean_table.loc[mask, 'Title'].str.split(' ', n=1).str[1] # Split at first space & take everything else
+                    st.write("trying to clean up title info:", clean_table['Title'])
                     # clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^[A-Z]\xad[A-Z0-9]+\xad[A-Z0-9]', '', regex=True)
                     # st.write(f"Title info after first cleaning repr: {repr(clean_table['Title'])}")
                     # clean_table ['Title'] = clean_table['Title'].astype(str).str.replace(r'^/[A-Z0-9]+\xad[A-Z0-9]+', '', regex=True)
