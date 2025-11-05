@@ -1,7 +1,6 @@
 # Invoices
 *.pdf
 Invoice_*.pdf
-*.txt
 
 # Virtual Environment
 .venv
