@@ -37,7 +37,7 @@ if uploaded_file is not None:
                 if i < len(all_tables) and i != (len(all_tables) - 1): # The last page might not include a main table
                     main_tables.append(all_tables[i])
 
-            st.write(f"### There are {len(main_tables)} Main Tables found on this Invoice:")
+            st.write(f"### The {len(main_tables)} Main Table(s) found on this Invoice:")
                 
             # Create a list for all the cleaned main tables
             clean_tables_list = []
@@ -268,7 +268,7 @@ if uploaded_file is not None:
                     # st.write(f"Row {i} repr: {repr(title)}")
 
             # DEBUG: Show all tables found
-            st.write(f"### *These are the original {len(all_tables)} tables found on this invoice:")
+            st.write(f"### *The original {len(all_tables)} table(s) found on this invoice:")
             for i, df in enumerate(all_tables, 1):
                  st.write(f"#### Table {i} (uncleaned):")
                  st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
