@@ -1,3 +1,0 @@
-streamlit
-pdfplumber
-pandas

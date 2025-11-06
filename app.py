@@ -37,7 +37,7 @@ if uploaded_file is not None:
                 if i < len(all_tables) and i != (len(all_tables) - 1): # The last page might not include a main table
                     main_tables.append(all_tables[i])
 
-            st.write("How many main tables we found:", len(main_tables))
+            st.write(f"### There are {len(main_tables)} Main Tables found on this Invoice:")
                 
             # Create a list for all the cleaned main tables
             clean_tables_list = []
@@ -249,7 +249,7 @@ if uploaded_file is not None:
                     clean_table.loc[mask4, 'Title'] = clean_table.loc[mask4, 'Title'].str.split(' ', n=1).str[1]
                     # DEBUG st.write("After third effort to clean up title info:", clean_table['Title'])
 
-                st.write(f"### Cleaned Main Table", table_index)
+                st.write(f"#### Main Table from Page {table_index + 1}")
                 st.dataframe(clean_table, width="stretch")
 
             if clean_tables_list:
@@ -268,10 +268,11 @@ if uploaded_file is not None:
                     # st.write(f"Row {i} repr: {repr(title)}")
 
             # DEBUG: Show all tables found
-            # for i, df in enumerate(all_tables, 1):
-            #     st.write(f"### Table {i}")
-            #     st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
-            #     st.dataframe(df, width="stretch")
+            st.write(f"### *These are the original {len(all_tables)} tables found on this invoice:")
+            for i, df in enumerate(all_tables, 1):
+                 st.write(f"#### Table {i} (uncleaned):")
+                 st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
+                 st.dataframe(df, width="stretch")
 
                 # # Download button for each table
                 # csv = df.to_csv(index=False)
