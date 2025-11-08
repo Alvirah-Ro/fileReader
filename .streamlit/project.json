@@ -1,0 +1,17 @@
+{
+    "id": "1",
+    "title": "PDF Table Extractor for Invoices",
+    "description": "A Streamlit App to create sortable invoices.",
+    "image": "Streamlit1.jpg",
+    "image2": "Streamlit2.jpg",
+    "image3": "Streamlit3.jpg",
+    "image4": "Streamlit3Sorted.jpg",
+    "image5": "",
+    "image6": "",
+    "github": "https://github.com/Alvirah-Ro/fileReader",
+    "technologies": ["Python", "Streamlit", "Pandas"],
+    "longDescription1": "This app was inspired by the many hours I've spent sorting through invoices at work. When receiving inventory, I often need to search through line items to verify pricing and other details. For short or well-organized invoices, this is easy enough, but when invoices span multiple pages or aren't sorted by product number, the process becomes time-consuming and error-prone.",
+    "longDescription2": "I initially tried to build a PDF table reader in JavaScript within my portfolio project, but it didn't provide the flexibility I needed. I switched to Python, using PDF Plumber to extract table data and Pandas to structure it into a dataframe, which I then displayed using Streamlit for an interactive web interface.",
+    "longDescription3": "Version G is the first completed iteration of this project. It identifies and extracts the main tables from a specific vendor's invoice format, merges tables from multiple pages, and outputs a complete, sortable table. Users can also download the results as a CSV file for further analysis.",
+    "longDescription4": "The next phase of the project is to build a more generalized version that allows users to customize table parsing and create templates for different invoice formats - making the tool adaptable across various document structures and vendors."
+}
