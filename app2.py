@@ -17,6 +17,39 @@ st.title('Automated PDF Table Extractor: Version K')
 # File uploader for PDF invoice
 uploaded_file = st.file_uploader("Upload a PDF invoice", type="pdf")
 
+def fix_concatenated_table(table):
+    """Fix tables where PDFPlumber concatenates column data"""
+    if  not table or len(table) < 2:
+        return table
+                
+    fixed_rows = []
+    # Process each row
+    for row in table:
+        # Split each cell by newlines to get individual values
+        split_cells = []
+        max_items = 0 # Start at 0 to find out how many separate rows we need to create
+
+        for cell in row:
+            if cell: # Convert everything to string, then split
+                items = [item.strip() for item in str(cell).split('\n') if item.strip()]
+                split_cells.append(items)
+                max_items = max(max_items, len(items)) # Update if this cell has more items
+            else:
+                split_cells.append(['']) # Handle None/Empty cells
+
+        # Create individual rows from split data
+        for i in range(max_items):
+            new_row = []
+            for cell_items in split_cells:
+                if i < len(cell_items):
+                    new_row.append(cell_items[i])
+                else:
+                    new_row.append('')
+            fixed_rows.append(new_row)
+                        
+    return fixed_rows
+
+
 if uploaded_file is not None:
     with pdfplumber.open(uploaded_file) as pdf:
         all_tables = []
@@ -27,10 +60,22 @@ if uploaded_file is not None:
         for page in pdf.pages:
             tables = page.extract_tables()
             if tables:
-                for table in tables:
-                    if table and len(table) > 1: # Skip empty or single-row tables
-                        df = pd.DataFrame(table)
+                for i, table in enumerate(tables):
+                    st.write(f"\nOriginal Table {i+1}:")
+                    st.write(f"Raw: {table}")
+
+                    # Fix concatenated data
+                    fixed_table = fix_concatenated_table(table)
+
+                    st.write(f"Fixed Table {i+1}:")
+                    if fixed_table:
+                        # On this particular invoice, the headers are in row fixed_table[3]
+                        # On this particular invoice, data does not start until fixed_table[5]
+                        # TO DO: create a variable for which row to start on 
+                        df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
+                        st.dataframe(df, width="stretch")
                         all_tables.append(df)
+
 
         if all_tables:
             st.success(f"Found {len(all_tables)} table(s) with PDF Plumber")
@@ -39,6 +84,7 @@ if uploaded_file is not None:
                  st.write(f"#### Table {i} (uncleaned):")
                  st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
                  st.dataframe(df, width="stretch")
+
         else:
             st.warning("No tables detected.  Here's the raw text instead:")
 
@@ -74,9 +120,20 @@ if uploaded_file is not None:
             cleaned_rows = []
             # Find headers
             for idx, row in table.iterrows():
-                header_row = re.search(r'Qty', str(row.iloc[0]))
-                if header_row:
+                st.write(f"Row data for row {idx}: {row}")
+                row_data = str(row).strip()
+                # if '\n' in row_data: # Find if rows are carrying over into other rows
+                    # row_data = row_data.split('\n')[-1] # Take the last line 
+                cleaned_row = row_data.split(' ', 1)
+                st.write(f"Cleaned row {idx}:", cleaned_row)
+
+
+                header_info = re.search(r'Qty', str(row.iloc[0]))
+                if header_info:
                     st.write(f"We found the word 'Qty' in row index {idx}")
+                    #header_parts = 
+                    #st.write("Here are the header parts:", header_parts)
+
                 # DEBUG st.write(f"Row data for row {idx}: {row}")
     
 
@@ -86,10 +143,6 @@ if uploaded_file is not None:
                 st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
                 st.dataframe(df, width="stretch")
         
-                cleaned_rows = []
-                # Try to split data by patterns using numbers as column boundaries
-                for idx, row in table.iterrows():
-                    st.write(f"Row data for row {idx}: {row}")
 
 
         # if clean_tables_list:
