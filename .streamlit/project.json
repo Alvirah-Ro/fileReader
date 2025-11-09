@@ -1,6 +1,6 @@
 {
     "id": "1",
-    "title": "PDF Table Extractor for Invoices",
+    "title": "PDF Table Extractor",
     "description": "A Streamlit App to create sortable invoices.",
     "link": "https://pdf-invoice-reader.streamlit.app",
     "image": "Streamlit1.jpg",
