@@ -11,7 +11,7 @@ st.title('Automated PDF Table Extractor: Version G')
 
 # File uploader for PDF invoice
 uploaded_file = st.file_uploader("Upload a PDF invoice", type="pdf")
-st.write(f"* Version G has been created for to process a specific vendor's invoice format.")
+st.write(f"* Version G has been created to process a specific vendor's invoice format.")
 st.write(f"* Other versions are in the works, including a way to create a template for specific formats.")
 st.write(f"* Check back again soon for updates!")
 
