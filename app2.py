@@ -7,46 +7,13 @@ import pdfplumber
 import pandas as pd
 import re
 
+# Import custom functions
+from table_functions import fix_concatenated_table
+
 st.title('Automated PDF Table Extractor: Version K')
 
 # File uploader for PDF invoice
 uploaded_file = st.file_uploader("Upload a PDF invoice", type="pdf")
-
-if st.button("Click Me"):
-    st.write("You clicked the button!")
-
-def fix_concatenated_table(table):
-    """Fix tables where PDFPlumber concatenates column data"""
-    if  not table or len(table) < 2:
-        return table
-                
-    fixed_rows = []
-    # Process each row
-    for row in table:
-        # Split each cell by newlines to get individual values
-        split_cells = []
-        max_items = 0 # Start at 0 to find out how many separate rows we need to create
-
-        for cell in row:
-            if cell: # Convert everything to string, then split
-                items = [item.strip() for item in str(cell).split('\n') if item.strip()]
-                split_cells.append(items)
-                max_items = max(max_items, len(items)) # Update if this cell has more items
-            else:
-                split_cells.append(['']) # Handle None/Empty cells
-
-        # Create individual rows from split data
-        for idx in range(max_items):
-            new_row = []
-            for cell_items in split_cells:
-                if idx < len(cell_items):
-                    new_row.append(cell_items[idx])
-                else:
-                    new_row.append('')
-            fixed_rows.append(new_row)
-                        
-    return fixed_rows
-
 
 if uploaded_file is not None:
     with pdfplumber.open(uploaded_file) as pdf:
@@ -57,37 +24,41 @@ if uploaded_file is not None:
 
         for page_num, page in enumerate(pdf.pages, 1): # Start page numbering at 1
             tables = page.extract_tables()
-            st.write(f"Found {len(tables)} tables on page {page_num}")
+            st.write(f"Found {len(tables)} table(s) on page {page_num}")
             if tables:
                 for i, table in enumerate(tables):
-                    st.write(f"DEBUG: Page {page_num}, Table {i + 1}")
-                    st.write(f"\nOriginal Table {i + 1} from Page {page_num}:")
-                    st.write(f"Raw: {table}")
+                    # DEBUG: st.write(f"DEBUG: Page {page_num}, Table {i + 1}")
+                    if st.button(f"Click to see raw data for Table {i + 1} on Page {page_num}", key=f"show_raw_data_{page_num}_{i}", type="secondary"):
+                        st.write(f"#### Original Table {i + 1} from Page {page_num}:")
+                        st.write(f"Raw: {table}")
                     df = pd.DataFrame(table)
-                    st.write(f"Original Table {i + 1} from Page {page_num}:")
+                    st.write(f"#### Original Table {i + 1} from Page {page_num}:")
                     st.dataframe(df, width="stretch")
 
-                    if st.button("Fix rows that have been combined",key="fix_btn_{page_num}_{i}"):
-                        # Fix concatenated data
-                        fixed_table = fix_concatenated_table(table)
+                    all_tables.append(df)
 
-                        st.write(f"Fixed Table {i + 1} from Page {page_num}:")
-                        if fixed_table:
-                            # On this particular invoice, the headers are in row fixed_table[3]
-                            # On this particular invoice, data does not start until fixed_table[5]
-                            # TO DO: create a variable for which row to start on 
-                            df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
-                            st.dataframe(df, width="stretch")
-                            all_tables.append(df)
-
-
+        # Combine all tables
         if all_tables:
-            st.success(f"Found {len(all_tables)} table(s) with PDF Plumber")
-            st.write(f"### *The original {len(all_tables)} table(s) found on this invoice:")
-            for i, df in enumerate(all_tables, 1):
-                 st.write(f"#### Table {i} (uncleaned):")
-                 st.write(f"Size: {df.shape[0]} rows x {df.shape[1]} columns")
-                 st.dataframe(df, width="stretch")
+            combined_table = pd.concat(all_tables, ignore_index=True)
+            df_all = pd.DataFrame(combined_table)
+            st.write(f"#### All Tables Combined:")
+            st.dataframe(df_all, width="stretch")
+
+        # Fix concatenated data
+        if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
+            # Convert DataFrame to list of lists to process
+            table_as_list = df_all.values.tolist()
+
+            fixed_table = fix_concatenated_table(table_as_list)
+            if fixed_table:
+                # On this particular invoice K, the headers are in row fixed_table[3]
+                # On this particular invoice K, data does not start until fixed_table[5]
+                # TO DO: create a variable for which row to start on 
+                # this df is K specific
+                # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
+                st.write(f"#### Separated data into multiple rows:")
+                df = pd.DataFrame(fixed_table, columns=None)
+                st.dataframe(df, width="stretch")
 
         else:
             st.warning("No tables detected.  Here's the raw text instead:")

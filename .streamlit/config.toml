@@ -1,6 +1,7 @@
 [theme]
 base = "light"
-primaryColor = "#f55d2fff"
+primaryColor = "#0cb471ff"
+secondaryColor = "#1f2cc3ff"
 
 [server]
 maxUploadSize = 50
