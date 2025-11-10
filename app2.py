@@ -8,7 +8,7 @@ import pandas as pd
 import re
 
 # Import custom functions
-from table_functions import fix_concatenated_table
+from table_functions import fix_concatenated_table, define_headers
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -36,6 +36,9 @@ if uploaded_file is not None:
                     st.dataframe(df, width="stretch")
 
                     all_tables.append(df)
+            else:
+                st.warning("No tables detected.  Here's the raw text instead:")
+
 
         # Combine all tables
         if all_tables:
@@ -60,8 +63,16 @@ if uploaded_file is not None:
                 df = pd.DataFrame(fixed_table, columns=None)
                 st.dataframe(df, width="stretch")
 
-        else:
-            st.warning("No tables detected.  Here's the raw text instead:")
+        # Choose Headers
+        if st.button("Choose which row includeds Headers", key="choose_headers_btn", type="primary"):
+            # Convert DataFrame to list of lists to process
+            table_as_list = df_all.values.tolist()
+
+            header_row = define_headers(table_as_list)
+            if header_row:
+                st.write(f"#### These are the headers for the table: {header_row}")
+                df = pd.DataFrame(fixed_table, columns=fixed_table[{header_row}])
+                st.dataframe(df, width="stretch")
 
             # Fallback: show text for manual copy/paste
             full_text = ""

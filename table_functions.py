@@ -2,6 +2,7 @@
 Table processing functions
 """
 
+import streamlit as st
 import pandas as pd
 
 def fix_concatenated_table(table):
@@ -36,3 +37,9 @@ def fix_concatenated_table(table):
             fixed_rows.append(new_row)
                         
     return fixed_rows
+
+def define_headers(table):
+        row_number = st.number_input("Row Number", min_value=0, max_value=200, step="int", key=None)
+
+        return row_number
+            
