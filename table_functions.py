@@ -39,7 +39,7 @@ def fix_concatenated_table(table):
     return fixed_rows
 
 def define_headers(table):
-        row_number = st.number_input("Row Number", min_value=0, max_value=200, step="int", key=None)
+        row_number = st.number_input("Row Number", min_value=0, max_value=200, key=None)
 
         return row_number
             
