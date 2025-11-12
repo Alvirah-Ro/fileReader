@@ -5,8 +5,10 @@ Table processing functions
 import streamlit as st
 import pandas as pd
 
+
 def fix_concatenated_table(table):
     """Fix tables where PDFPlumber concatenates column data"""
+
     # For example: if every row of data in a column is showing up in 1 cell
     if  not table or len(table) < 2:
         return table
@@ -38,8 +40,29 @@ def fix_concatenated_table(table):
                         
     return fixed_rows
 
-def define_headers(table):
-        row_number = st.number_input("Row Number", min_value=0, max_value=200, key=None)
 
-        return row_number
-            
+def clean_duplicate_headers(headers):
+    """ Clean duplicate headers by appending numbers to duplicates """
+    clean_headers = [] # Store final cleaned header names
+    seen_headers = {} # Track how many times each header appears
+
+    for header in headers:
+        # Convert to string and handle None/empty values
+        if header is None or header == '' or str(header).strip() == '':
+            header = "Unnamed"
+        else:
+            header = str(header).strip()
+
+        # Handle duplicates
+        if header in seen_headers:
+            seen_headers[header] += 1
+            unique_header = f"{header}_{seen_headers[header]}" # Add number suffix
+        else:
+            seen_headers[header] = 0
+            unique_header = header # Keep original name
+        
+        clean_headers.append(unique_header)
+
+    return clean_headers
+
+

@@ -8,7 +8,7 @@ import pandas as pd
 import re
 
 # Import custom functions
-from table_functions import fix_concatenated_table, define_headers
+from table_functions import fix_concatenated_table, clean_duplicate_headers,
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -71,19 +71,44 @@ if uploaded_file is not None:
                 st.success(f"Table rows have been separated!")
                 st.rerun() # Refresh to show changes
 
+        # Number input for choosing headers
+        st.write("#### Choose Header Row")
+        header_row_input = st.number_input("Select which row contains the headers:",
+                                            min_value=0, 
+                                            max_value=len(st.session_state.table_as_list) - 1 if 'table_as list' in st.session_state else 10,
+                                            value=0,
+                                            key="header_row_selector")
+
         # Choose Headers
         if st.button("Choose which row includeds Headers", key="choose_headers_btn", type="primary"):
-            header_row = define_headers(st.session_state.table_as_list)
-            if header_row is not None:
+            if 'table_as_list' in st.session_state:
+                header_row = header_row_input
                 st.write(f"#### Headers found in row: {header_row}")
                 # Create new dataframe with headers
                 fixed_data = st.session_state.table_as_list
                 if len(fixed_data) > header_row + 1:
-                    headers = fixed_data[header_row]
+                    raw_headers = fixed_data[header_row]
+
+                    # Clean duplicate headers
+                    clean_headers = clean_duplicate_headers(raw_headers)
+
+                    #DEBUG:
+                    if raw_headers != clean_headers:
+                        st.write("**Original headers:**", raw_headers)
+                        st.write("**Cleaned headers:**", clean_headers)
+
                     data = fixed_data[header_row + 1:]
-                    st.session_state.main_table = pd.DataFrame(data, columns=headers)
-                    st.success(f"Headers applied from row {header_row}!")
-                    st.rerun()
+
+                    try:
+                        st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
+                        st.success(f"Headers applied from row {header_row}!")
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(f"Error creating DataFrame: {e}")
+                        st.write("Raw headers:", raw_headers)
+                        st.write("Cleaned headers:", clean_headers)
+                        st.write(f"Number of headers: {len(clean_headers)}")
+                        st.write(f"Number of data columns: {len(data[0]) if data else 0}")
                 else:
                     st.error(f"Not enough data after header row {header_row}")
             else:
