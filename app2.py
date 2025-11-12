@@ -8,7 +8,7 @@ import pandas as pd
 import re
 
 # Import custom functions
-from table_functions import fix_concatenated_table, clean_duplicate_headers,
+from table_functions import fix_concatenated_table, clean_duplicate_headers
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -48,6 +48,7 @@ if uploaded_file is not None:
             st.session_state.main_table = combined_table
             # Convert dataframe to list of lists for processing
             st.session_state.table_as_list = combined_table.values.tolist()
+            st.session_state.current_headers = None
             st.success("Main table initialized!")
 
         # Display current main table
@@ -59,49 +60,71 @@ if uploaded_file is not None:
 
         # Fix concatenated data
         if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
-            fixed_table = fix_concatenated_table(st.session_state.table_as_list)
-            if fixed_table:
-                # On this particular invoice K, the headers are in row fixed_table[3]
-                # On this particular invoice K, data does not start until fixed_table[5]
-                # TO DO: create a variable for which row to start on 
-                # this df is K specific
-                # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
-                st.session_state.main_table = pd.DataFrame(fixed_table, columns=None)
-                st.session_state.table_as_list = fixed_table
-                st.success(f"Table rows have been separated!")
-                st.rerun() # Refresh to show changes
+            if 'table_as_list' in st.session_state:
+                fixed_table = fix_concatenated_table(st.session_state.table_as_list)
+                if fixed_table:
+                    # Check if current_headers exists and is not None
+                    headers_to_use = None
+                    if 'current_headers' in st.session_state and st.session_state.current_headers is not None:
+                        headers_to_use = st.session_state.current_headers
+                    # On this particular invoice K, the headers are in row fixed_table[3]
+                    # On this particular invoice K, data does not start until fixed_table[5]
+                    # TO DO: create a variable for which row to start on 
+                    # this df is K specific
+                    # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
+                    st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
+                    st.session_state.table_as_list = fixed_table
+                    st.success(f"Table rows have been separated!")
+                    st.rerun() # Refresh to show changes
+            else:
+                st.error("No table data available to fix")
 
         # Number input for choosing headers
         st.write("#### Choose Header Row")
-        header_row_input = st.number_input("Select which row contains the headers:",
+        header_row_input = st.number_input("Select the first row that includes headers",
                                             min_value=0, 
-                                            max_value=len(st.session_state.table_as_list) - 1 if 'table_as list' in st.session_state else 10,
+                                            max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
                                             value=0,
                                             key="header_row_selector")
+        
+        # Row input for data start
+        data_start_input = st.number_input("Select the first row that contains actual data",
+                                           min_value=header_row_input + 1,
+                                           max_value=len(st.session_state.table_as_list),
+                                           value=header_row_input + 1,
+                                           key="data_start_selector")
 
         # Choose Headers
-        if st.button("Choose which row includeds Headers", key="choose_headers_btn", type="primary"):
+        if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
             if 'table_as_list' in st.session_state:
                 header_row = header_row_input
-                st.write(f"#### Headers found in row: {header_row}")
+                data_start_row = data_start_input
+                st.write(f"#### Headers found in row: {header_row}, Data starts at row: {data_start_row}")
+                
                 # Create new dataframe with headers
                 fixed_data = st.session_state.table_as_list
-                if len(fixed_data) > header_row + 1:
+                if len(fixed_data) > data_start_row:
                     raw_headers = fixed_data[header_row]
 
                     # Clean duplicate headers
                     clean_headers = clean_duplicate_headers(raw_headers)
+
+                    # Store headers in session state
+                    st.session_state.current_headers = clean_headers
+                    st.session_state.raw_headers = raw_headers
+                    st.session_state.header_row_index = header_row
+                    st.session_state.data_start_index = data_start_row
 
                     #DEBUG:
                     if raw_headers != clean_headers:
                         st.write("**Original headers:**", raw_headers)
                         st.write("**Cleaned headers:**", clean_headers)
 
-                    data = fixed_data[header_row + 1:]
+                    data = fixed_data[data_start_row:] # Use custom data start row
 
                     try:
                         st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
-                        st.success(f"Headers applied from row {header_row}!")
+                        st.success(f"Headers applied from row {header_row}, data starts at row {data_start_row}!")
                         st.rerun()
                     except ValueError as e:
                         st.error(f"Error creating DataFrame: {e}")
@@ -110,7 +133,7 @@ if uploaded_file is not None:
                         st.write(f"Number of headers: {len(clean_headers)}")
                         st.write(f"Number of data columns: {len(data[0]) if data else 0}")
                 else:
-                    st.error(f"Not enough data after header row {header_row}")
+                    st.error(f"Not enough data at row {data_start_row}")
             else:
                 st.error("Could not find headers in the table")
 
@@ -120,6 +143,15 @@ if uploaded_file is not None:
                 combined_table = pd.concat(all_tables, ignore_index=True)
                 st.session_state.main_table = combined_table
                 st.session_state.table_as_list = combined_table.values.tolist()
+
+                # Clear header session state variables
+                if 'current_headers' in st.session_state:
+                    del st.session_state.current_headers
+                if 'raw_headers' in st.session_state:
+                    del st.session_state.raw_headers
+                if 'header_row_index' in st.session_state:
+                    del st.session_state.header_row_index
+
                 st.success("Table reset to original!")
                 st.rerun()
 
