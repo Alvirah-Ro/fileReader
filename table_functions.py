@@ -3,7 +3,24 @@ Table processing functions
 """
 
 import streamlit as st
-import pandas as pd
+import uuid
+from datetime import datetime
+
+
+def save_action_state(action_type, action_name):
+    """Save current state before applying an action"""
+    action_id = str(uuid.uuid4())[:8]
+    action_data= {
+        'id': action_id,
+        'type': action_type,
+        'name': action_name,
+        'timestamp': datetime.now().strftime("%H:%M:%S"),
+        'working_data': st.session_state.working_data.copy(),
+        'current_headers': st.session_state.get('current_headers', None),
+        'main_table': st.session_state.main_table.copy() if 'main_table' in st.session_state else None
+    }
+    st.session_state.applied_actions.append(action_data)
+    return action_id
 
 
 def fix_concatenated_table(table):
@@ -41,8 +58,26 @@ def fix_concatenated_table(table):
     return fixed_rows
 
 
+def undo_fix_concatenated_action(action_id):
+    """Undo specific fix concatenated action"""
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+    st.rerun()
+
+
 def clean_duplicate_headers(headers):
-    """ Clean duplicate headers by appending numbers to duplicates """
+    """Clean duplicate headers by appending numbers to duplicates"""
     clean_headers = [] # Store final cleaned header names
     seen_headers = {} # Track how many times each header appears
 
@@ -66,3 +101,19 @@ def clean_duplicate_headers(headers):
     return clean_headers
 
 
+def undo_headers_action(action_id):
+    """Undo specific headers action"""
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+    st.rerun()

@@ -5,10 +5,8 @@ Automated PDF table extractor: Version K
 import streamlit as st
 import pdfplumber
 import pandas as pd
-import re
-
 # Import custom functions
-from table_functions import fix_concatenated_table, clean_duplicate_headers
+from table_functions import save_action_state, fix_concatenated_table, undo_fix_concatenated_action, clean_duplicate_headers, undo_headers_action
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -65,23 +63,36 @@ if uploaded_file is not None:
         if 'current_headers' in st.session_state and st.session_state.current_headers:
             st.write("**Current Headers:**", st.session_state.current_headers)
 
-        # Fix concatenated data
-        if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
-            # Always work from original data
-            source_data = st.session_state.original_table_data
-            fixed_table = fix_concatenated_table(source_data)
-            if fixed_table:
-                st.session_state.working_data = fixed_table # Update single working copy
-                headers_to_use = st.session_state.get('current_headers', None)
-                    # On this particular invoice K, the headers are in row fixed_table[3]
-                    # On this particular invoice K, data does not start until fixed_table[5]
-                    # TO DO: create a variable for which row to start on 
-                    # this df is K specific
-                    # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
-                st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
-                st.success(f"Table rows have been separated!")
-                st.rerun() # Refresh to show changes
+        # Initialize applied actions tracking
+        if 'applied_actions' not in st.session_state:
+            st.session_state.applied_actions = []
 
+        # Create columns for table and actions panel
+        col_table, col_actions = st.columns([2, 1])
+
+        with col_table:
+            st.dataframe(st.session_state.main_table, width="stretch")
+
+        with col_actions:
+            st.write("### Applied Actions")
+            if st.session_state.applied_actions:
+                for i, action in enumerate(reversed(st.session_state.applied_actions)):
+                    with st.container():
+                        st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
+                        st.write(f"_Applied at: {action['timestamp']}_")
+
+                    # Specific undo button for each action type
+                    if action['type'] == 'fix_concatenated':
+                        if st.button(f"↶ Undo Fix", key=f"undo_fix_{action['id']}", type="secondary"):
+                            undo_fix_concatenated_action(action['id'])
+
+                    elif action['type'] == 'apply_headers':
+                        if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
+                            undo_headers_action(action['id'])
+
+                    st.divider()
+            else:
+                st.info("No actions applied yet")
 
         # Header and Data start selection (works on current table_as_list)
         st.write("#### Choose Header Row")
@@ -102,27 +113,43 @@ if uploaded_file is not None:
                                            value=header_row_input + 1,
                                            key="data_start_selector")
 
-        if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
-                current_data = st.session_state.working_data # always use working data
-                raw_headers = current_data[header_row_input]
-                clean_headers = clean_duplicate_headers(raw_headers)
-                data = current_data[data_start_input:]
+            if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
+                    # Save current state before applying changes
+                    action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
+
+                    current_data = st.session_state.working_data # always use working data
+                    raw_headers = current_data[header_row_input]
+                    clean_headers = clean_duplicate_headers(raw_headers)
+                    data = current_data[data_start_input:]
                 
-                # Store headers in session state
-                st.session_state.current_headers = clean_headers
-                st.session_state.raw_headers = raw_headers
-                st.session_state.header_row_index = header_row_input
-                st.session_state.data_start_index = data_start_input
+                    # Store headers in session state
+                    st.session_state.current_headers = clean_headers
+                    st.session_state.raw_headers = raw_headers
+                    st.session_state.header_row_index = header_row_input
+                    st.session_state.data_start_index = data_start_input
 
-                #DEBUG:
-                if raw_headers != clean_headers:
-                    st.write("**Original headers:**", raw_headers)
-                    st.write("**Cleaned headers:**", clean_headers)
+                    # Update main table
+                    st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
+                    st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
+                    st.rerun()
 
-                # Update main table
-                st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
-                st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
-                st.rerun()
+
+        # Fix concatenated data
+        if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
+            # Save current state before applying changes
+            action_id = save_action_state('fix_concatenated', "Fix Concatenated Rows")
+
+            # Always work from original data
+            source_data = st.session_state.original_table_data
+            fixed_table = fix_concatenated_table(source_data)
+            if fixed_table:
+                st.session_state.working_data = fixed_table # Update single working copy
+                headers_to_use = st.session_state.get('current_headers', None)
+                    # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
+                st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
+                st.success("Table rows have been separated!")
+                st.rerun() # Refresh to show changes
+
 
         # Reset button to start over
         if st.button("Reset to Original", key="reset_btn", type="secondary"):
@@ -130,14 +157,12 @@ if uploaded_file is not None:
                 combined_table = pd.concat(all_tables, ignore_index=True)
                 st.session_state.main_table = combined_table
                 st.session_state.table_as_list = combined_table.values.tolist()
+                st.session_state.working_data = combined_table.values.tolist()
 
-                # Clear header session state variables
-                if 'current_headers' in st.session_state:
-                    del st.session_state.current_headers
-                if 'raw_headers' in st.session_state:
-                    del st.session_state.raw_headers
-                if 'header_row_index' in st.session_state:
-                    del st.session_state.header_row_index
+                # Clear ALL session state variables including applied_actions
+                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
+                    if key in st.session_state:
+                        del st.session_state[key]
 
                 st.success("Table reset to original!")
                 st.rerun()
