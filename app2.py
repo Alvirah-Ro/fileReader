@@ -7,7 +7,8 @@ import pdfplumber
 import pandas as pd
 # Import custom functions
 from table_functions import (save_action_state, fix_concatenated_table, undo_fix_concatenated_action,
-                             clean_duplicate_headers, undo_headers_action, update_display_table)
+                             clean_duplicate_headers, undo_headers_action, update_display_table,
+                             remove_duplicate_headers, undo_remove_duplicates_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -20,7 +21,7 @@ if uploaded_file is not None:
 
         # DEBUG: page_text = pdf.pages[0].extract_text()
         # DEBUG: st.text_area("Raw text (first 1000 chars):", page_text[:1000])
-        with st.expander("Click to see raw data or original tables:"):
+        with st.expander("View Raw Data or Original Tables"):
             for page_num, page in enumerate(pdf.pages, 1): # Start page numbering at 1
                 tables = page.extract_tables()
                 st.write(f"Found {len(tables)} table(s) on page {page_num}")
@@ -61,7 +62,8 @@ if uploaded_file is not None:
 
         # Show current processing status
         if 'current_headers' in st.session_state and st.session_state.current_headers:
-            st.write("**Current Headers:**", st.session_state.current_headers)
+            with st.expander("View Current Headers"):
+                st.write("**Current Headers:**", st.session_state.current_headers)
 
         # Display current main table
         if 'main_table' in st.session_state:
@@ -93,6 +95,10 @@ if uploaded_file is not None:
                     elif action['type'] == 'apply_headers':
                         if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
                             undo_headers_action(action['id'])
+                    
+                    elif action['type'] == 'remove_duplicates':
+                        if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
+                            undo_remove_duplicates_action(action['id'])
 
                     st.divider()
             else:
@@ -142,6 +148,25 @@ if uploaded_file is not None:
                             st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
                             st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
                             st.rerun()
+
+            # Remove duplicate header rows
+            with st.expander("Remove Duplicate Headers"):
+                if 'header_row_index' in st.session_state and st.session_state.header_row_index is not None:
+                    st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
+                    if st.button("Remove Duplicate Header Hows", key = "remove_duplicates_btn", type="primary"):
+                        # Save current state before applying changes
+                        action_id = save_action_state('remove_duplicates', f"Remove Duplicate Headers (Row {st.session_state.header_row_index})")
+
+                        # Work from current working data
+                        source_data = st.session_state.working_data
+                        cleaned_data = remove_duplicate_headers(source_data, st.session_state.header_row_index)
+
+                        # Use helper function to handle formatting
+                        update_display_table(cleaned_data)
+                        st.success("Removed duplicate headers rows!")
+                        st.rerun()
+                else:
+                    st.info("Please select headers first to identify which rows to remove")
 
             # Fix concatenated data
             with st.expander("Fix Rows"):

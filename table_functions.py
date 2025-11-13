@@ -29,7 +29,6 @@ def update_display_table(new_working_data):
     Update the main display table with current formatting settins
     Handles headers and data start automatically
     """
-
     # Update working data
     st.session_state.working_data = new_working_data
     # Apply current formatting if it exists
@@ -47,6 +46,42 @@ def update_display_table(new_working_data):
 
     # Update display
     st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
+
+def remove_duplicate_headers(table_data, header_row_index):
+    """
+    Remove duplicate header rows from table data
+    Keeps first occurrence of header row and removes subsequet duplicates
+    """
+    if not table_data or header_row_index >= len(table_data):
+        return table_data
+
+    header_row = table_data[header_row_index]
+    cleaned_data = []
+
+    for i, row in enumerate(table_data):
+        # Keep the original header row and all rows that don't match it
+        if i == header_row_index or row != header_row:
+            cleaned_data.append(row)
+
+    return cleaned_data
+
+def undo_remove_duplicates_action(action_id):
+    """Undo specific remove duplicates action"""
+
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+    st.rerun()
 
 def fix_concatenated_table(table):
     """Fix tables where PDFPlumber concatenates column data"""
@@ -127,7 +162,7 @@ def clean_duplicate_headers(headers):
 
 def undo_headers_action(action_id):
     """Undo specific headers action"""
-    
+
     action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
     target_action = st.session_state.applied_actions[action_index]
 
