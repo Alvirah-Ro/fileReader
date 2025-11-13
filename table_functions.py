@@ -3,12 +3,14 @@ Table processing functions
 """
 
 import streamlit as st
+import pandas as pd
 import uuid
 from datetime import datetime
 
 
 def save_action_state(action_type, action_name):
     """Save current state before applying an action"""
+
     action_id = str(uuid.uuid4())[:8]
     action_data= {
         'id': action_id,
@@ -22,6 +24,29 @@ def save_action_state(action_type, action_name):
     st.session_state.applied_actions.append(action_data)
     return action_id
 
+def update_display_table(new_working_data):
+    """
+    Update the main display table with current formatting settins
+    Handles headers and data start automatically
+    """
+
+    # Update working data
+    st.session_state.working_data = new_working_data
+    # Apply current formatting if it exists
+    headers_to_use = st.session_state.get('current_headers', None)
+    # Handle data start if it was previously set
+    if 'data_start_index' in st.session_state and st.session_state.data_start_index is not None:
+        data_start = st.session_state.data_start_index
+        if data_start < len(new_working_data):
+            display_data = new_working_data[data_start:]
+        else:
+            display_data = new_working_data
+            st.warning(f"Previous data start row {data_start} exceeds new table length")
+    else:
+        display_data = new_working_data
+
+    # Update display
+    st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
 
 def fix_concatenated_table(table):
     """Fix tables where PDFPlumber concatenates column data"""
@@ -57,9 +82,9 @@ def fix_concatenated_table(table):
                         
     return fixed_rows
 
-
 def undo_fix_concatenated_action(action_id):
     """Undo specific fix concatenated action"""
+
     action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
     target_action = st.session_state.applied_actions[action_index]
 
@@ -75,9 +100,9 @@ def undo_fix_concatenated_action(action_id):
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
     st.rerun()
 
-
 def clean_duplicate_headers(headers):
     """Clean duplicate headers by appending numbers to duplicates"""
+
     clean_headers = [] # Store final cleaned header names
     seen_headers = {} # Track how many times each header appears
 
@@ -100,9 +125,9 @@ def clean_duplicate_headers(headers):
 
     return clean_headers
 
-
 def undo_headers_action(action_id):
     """Undo specific headers action"""
+    
     action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
     target_action = st.session_state.applied_actions[action_index]
 

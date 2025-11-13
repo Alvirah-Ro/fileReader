@@ -6,7 +6,8 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import save_action_state, fix_concatenated_table, undo_fix_concatenated_action, clean_duplicate_headers, undo_headers_action
+from table_functions import (save_action_state, fix_concatenated_table, undo_fix_concatenated_action,
+                             clean_duplicate_headers, undo_headers_action, update_display_table)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -19,32 +20,32 @@ if uploaded_file is not None:
 
         # DEBUG: page_text = pdf.pages[0].extract_text()
         # DEBUG: st.text_area("Raw text (first 1000 chars):", page_text[:1000])
-        st.write("Buttons to see raw data or original tables:")
-        for page_num, page in enumerate(pdf.pages, 1): # Start page numbering at 1
-            tables = page.extract_tables()
-            st.write(f"Found {len(tables)} table(s) on page {page_num}")
-            if tables:
-                for i, table in enumerate(tables):
-                    # DEBUG: st.write(f"DEBUG: Page {page_num}, Table {i + 1}")
-                    col_raw, col_original = st.columns([1, 1])
-                    with col_raw:
-                        if st.button(f"Raw Data: Table {i + 1}, Page {page_num}", 
-                                    key=f"show_raw_data_{page_num}_{i}", type="secondary"):
-                            st.write(f"#### Original Table {i + 1} from Page {page_num}:")
-                            st.write(f"Raw: {table}")
-                    df = pd.DataFrame(table)
-                    with col_original:
-                        if st.button(f"Original Table {i + 1}, Page {page_num}",
-                                    key=f"show_original_table_{page_num}_{i}", type="secondary"):
-                            st.write(f"#### Original Table {i + 1} from Page {page_num}:")
-                            st.dataframe(df, width="stretch")
-                    all_tables.append(df)
-            else:
-                page_text = page.extract_text()
-                st.write(f"No tables detected.  Click to see raw text from {page_num}:")
-                if st.button(f"Raw Text, Page {page_num}",
-                             key=f"show_text_{page_num}", type="secondary"):
-                    st.text_area("Extracted text:", page_text, height=400)
+        with st.expander("Click to see raw data or original tables:"):
+            for page_num, page in enumerate(pdf.pages, 1): # Start page numbering at 1
+                tables = page.extract_tables()
+                st.write(f"Found {len(tables)} table(s) on page {page_num}")
+                if tables:
+                    for i, table in enumerate(tables):
+                        # DEBUG: st.write(f"DEBUG: Page {page_num}, Table {i + 1}")
+                        col_raw, col_original = st.columns([1, 1])
+                        with col_raw:
+                            if st.button(f"Raw Data: Table {i + 1}, Page {page_num}", 
+                                        key=f"show_raw_data_{page_num}_{i}", type="primary"):
+                                st.write(f"#### Original Table {i + 1} from Page {page_num}:")
+                                st.write(f"Raw: {table}")
+                        df = pd.DataFrame(table)
+                        with col_original:
+                            if st.button(f"Original Table {i + 1}, Page {page_num}",
+                                        key=f"show_original_table_{page_num}_{i}", type="primary"):
+                                st.write(f"#### Original Table {i + 1} from Page {page_num}:")
+                                st.dataframe(df, width="stretch")
+                        all_tables.append(df)
+                else:
+                    page_text = page.extract_text()
+                    st.write(f"No tables detected.  Click to see raw text from {page_num}:")
+                    if st.button(f"Raw Text, Page {page_num}",
+                                key=f"show_text_{page_num}", type="primary"):
+                        st.text_area("Extracted text:", page_text, height=400)
 
         # Combine all tables and initialize session state
         if all_tables and 'main_table' not in st.session_state:
@@ -153,9 +154,8 @@ if uploaded_file is not None:
                     fixed_table = fix_concatenated_table(source_data)
                     if fixed_table:
                         st.session_state.working_data = fixed_table # Update single working copy
-                        headers_to_use = st.session_state.get('current_headers', None)
-                        # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
-                        st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
+                        # Use helper function to handle all formatting automatically
+                        update_display_table(fixed_table)
                         st.success("Table rows have been separated!")
                         st.rerun() # Refresh to show changes
 
