@@ -19,26 +19,32 @@ if uploaded_file is not None:
 
         # DEBUG: page_text = pdf.pages[0].extract_text()
         # DEBUG: st.text_area("Raw text (first 1000 chars):", page_text[:1000])
-
+        st.write("Buttons to see raw data or original tables:")
         for page_num, page in enumerate(pdf.pages, 1): # Start page numbering at 1
             tables = page.extract_tables()
             st.write(f"Found {len(tables)} table(s) on page {page_num}")
             if tables:
                 for i, table in enumerate(tables):
                     # DEBUG: st.write(f"DEBUG: Page {page_num}, Table {i + 1}")
-                    if st.button(f"Click to see raw data for Table {i + 1} on Page {page_num}", 
-                                 key=f"show_raw_data_{page_num}_{i}", type="secondary"):
-                        st.write(f"#### Original Table {i + 1} from Page {page_num}:")
-                        st.write(f"Raw: {table}")
+                    col_raw, col_original = st.columns([1, 1])
+                    with col_raw:
+                        if st.button(f"Raw Data: Table {i + 1}, Page {page_num}", 
+                                    key=f"show_raw_data_{page_num}_{i}", type="secondary"):
+                            st.write(f"#### Original Table {i + 1} from Page {page_num}:")
+                            st.write(f"Raw: {table}")
                     df = pd.DataFrame(table)
-                    if st.button(f"Click to see original Table {i + 1} from Page {page_num}",
-                                 key=f"show_original_table_{page_num}_{i}", type="secondary"):
-                        st.write(f"#### Original Table {i + 1} from Page {page_num}:")
-                        st.dataframe(df, width="stretch")
+                    with col_original:
+                        if st.button(f"Original Table {i + 1}, Page {page_num}",
+                                    key=f"show_original_table_{page_num}_{i}", type="secondary"):
+                            st.write(f"#### Original Table {i + 1} from Page {page_num}:")
+                            st.dataframe(df, width="stretch")
                     all_tables.append(df)
             else:
-                st.warning("No tables detected.  Here's the raw text instead:")
-
+                page_text = page.extract_text()
+                st.write(f"No tables detected.  Click to see raw text from {page_num}:")
+                if st.button(f"Raw Text, Page {page_num}",
+                             key=f"show_text_{page_num}", type="secondary"):
+                    st.text_area("Extracted text:", page_text, height=400)
 
         # Combine all tables and initialize session state
         if all_tables and 'main_table' not in st.session_state:
@@ -52,6 +58,10 @@ if uploaded_file is not None:
             st.session_state.current_headers = None
             st.success("Main table initialized!")
 
+        # Show current processing status
+        if 'current_headers' in st.session_state and st.session_state.current_headers:
+            st.write("**Current Headers:**", st.session_state.current_headers)
+
         # Display current main table
         if 'main_table' in st.session_state:
             st.write(f"### All Tables Combined:")
@@ -59,19 +69,12 @@ if uploaded_file is not None:
             st.write("Click on options below to format table")
             st.dataframe(st.session_state.main_table, width="stretch")
 
-        # Show current processing status
-        if 'current_headers' in st.session_state and st.session_state.current_headers:
-            st.write("**Current Headers:**", st.session_state.current_headers)
-
         # Initialize applied actions tracking
         if 'applied_actions' not in st.session_state:
             st.session_state.applied_actions = []
 
         # Create columns for table and actions panel
-        col_table, col_actions = st.columns([2, 1])
-
-        with col_table:
-            st.dataframe(st.session_state.main_table, width="stretch")
+        col_choices, col_break, col_actions = st.columns([3, 1, 3])
 
         with col_actions:
             st.write("### Applied Actions")
@@ -94,65 +97,71 @@ if uploaded_file is not None:
             else:
                 st.info("No actions applied yet")
 
-        # Header and Data start selection (works on current table_as_list)
-        st.write("#### Choose Header Row")
-        if 'table_as_list' in st.session_state:
-            max_rows = len(st.session_state.table_as_list) - 1
+        with col_break:
+            st.write("")
             
-            # Number input for choosing headers
-            header_row_input = st.number_input("Select the first row that includes headers",
-                                            min_value=0, 
-                                            max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
-                                            value=0,
-                                            key="header_row_selector")
+        with col_choices:
+            # Header and Data start selection
+            st.write("### Formatting Choices")
+            with st.expander("Choose Headers"):
+                st.write("#### Choose Header Row")
+                if 'table_as_list' in st.session_state:
+                    max_rows = len(st.session_state.table_as_list) - 1
+            
+                    # Number input for choosing headers
+                    header_row_input = st.number_input("Select the first row that includes headers",
+                                                    min_value=0, 
+                                                    max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
+                                                    value=0,
+                                                    key="header_row_selector")
         
-            # Row input for data start
-            data_start_input = st.number_input("Select the first row that contains actual data",
-                                           min_value=header_row_input + 1,
-                                           max_value=len(st.session_state.table_as_list),
-                                           value=header_row_input + 1,
-                                           key="data_start_selector")
+                    # Row input for data start
+                    data_start_input = st.number_input("Select the first row that contains actual data",
+                                                min_value=header_row_input + 1,
+                                                max_value=len(st.session_state.table_as_list),
+                                                value=header_row_input + 1,
+                                                key="data_start_selector")
 
-            if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
-                    # Save current state before applying changes
-                    action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
+                    if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
+                            # Save current state before applying changes
+                            action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
 
-                    current_data = st.session_state.working_data # always use working data
-                    raw_headers = current_data[header_row_input]
-                    clean_headers = clean_duplicate_headers(raw_headers)
-                    data = current_data[data_start_input:]
+                            current_data = st.session_state.working_data # always use working data
+                            raw_headers = current_data[header_row_input]
+                            clean_headers = clean_duplicate_headers(raw_headers)
+                            data = current_data[data_start_input:]
                 
-                    # Store headers in session state
-                    st.session_state.current_headers = clean_headers
-                    st.session_state.raw_headers = raw_headers
-                    st.session_state.header_row_index = header_row_input
-                    st.session_state.data_start_index = data_start_input
+                            # Store headers in session state
+                            st.session_state.current_headers = clean_headers
+                            st.session_state.raw_headers = raw_headers
+                            st.session_state.header_row_index = header_row_input
+                            st.session_state.data_start_index = data_start_input
 
-                    # Update main table
-                    st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
-                    st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
-                    st.rerun()
+                            # Update main table
+                            st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
+                            st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
+                            st.rerun()
 
+            # Fix concatenated data
+            with st.expander("Fix Rows"):
+                if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
+                    # Save current state before applying changes
+                    action_id = save_action_state('fix_concatenated', "Fix Concatenated Rows")
 
-        # Fix concatenated data
-        if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
-            # Save current state before applying changes
-            action_id = save_action_state('fix_concatenated', "Fix Concatenated Rows")
-
-            # Always work from original data
-            source_data = st.session_state.original_table_data
-            fixed_table = fix_concatenated_table(source_data)
-            if fixed_table:
-                st.session_state.working_data = fixed_table # Update single working copy
-                headers_to_use = st.session_state.get('current_headers', None)
-                    # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
-                st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
-                st.success("Table rows have been separated!")
-                st.rerun() # Refresh to show changes
+                    # Always work from original data
+                    source_data = st.session_state.original_table_data
+                    fixed_table = fix_concatenated_table(source_data)
+                    if fixed_table:
+                        st.session_state.working_data = fixed_table # Update single working copy
+                        headers_to_use = st.session_state.get('current_headers', None)
+                        # df = pd.DataFrame(fixed_table[5:], columns=fixed_table[3] if fixed_table[3] else None)
+                        st.session_state.main_table = pd.DataFrame(fixed_table, columns=headers_to_use)
+                        st.success("Table rows have been separated!")
+                        st.rerun() # Refresh to show changes
 
 
         # Reset button to start over
-        if st.button("Reset to Original", key="reset_btn", type="secondary"):
+        if st.button("Reset to Original", key="reset_btn", type="primary"):
             if all_tables:
                 combined_table = pd.concat(all_tables, ignore_index=True)
                 st.session_state.main_table = combined_table
