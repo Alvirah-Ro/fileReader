@@ -48,6 +48,14 @@ def update_display_table(new_working_data):
     # Update display
     st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
 
+def choose_headers(header_row_input):
+    """Apply headers from specified row without changing data start"""
+    current_data = st.session_state.working_data
+
+    # Extract and clean headers
+    raw_headers = current_data[header_row_input]
+    clean_headers = clean_duplicate_headers(raw_headers)
+
 def remove_duplicate_headers(table_data, header_row_index):
     """
     Remove duplicate header rows from table data

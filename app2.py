@@ -114,43 +114,43 @@ if uploaded_file is not None:
         with col_choices:
             # Header and Data start selection
             st.write("### Formatting Choices")
+
+            # Choose row that contains headers
             with st.expander("Choose Headers"):
                 st.write("#### Choose Header Row")
                 if 'table_as_list' in st.session_state:
-                    max_rows = len(st.session_state.table_as_list) - 1
-            
-                    # Number input for choosing headers
                     header_row_input = st.number_input("Select the first row that includes headers",
                                                     min_value=0, 
                                                     max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
                                                     value=0,
                                                     key="header_row_selector")
         
+                    if st.button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
+                        # Save current state before applying changes
+                        action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
+                        clean_headers = clean_duplicate_headers(header_row_input)
+
+                        # Update main table
+                        update_display_table(st.session_state.working_data)
+                        st.success(f"Headers applied from row {header_row_input}!")
+
+            # Choose row where actual data starts
+            with st.expander("Choose Data Start"):
+                if 'current_headers' in st.session_state and st.session_state.current_headers:
                     # Row input for data start
                     data_start_input = st.number_input("Select the first row that contains actual data",
                                                 min_value=header_row_input + 1,
                                                 max_value=len(st.session_state.table_as_list),
                                                 value=header_row_input + 1,
                                                 key="data_start_selector")
+                    if st.button("Apply Data Start", key="data_start_btn", type="primary"):
+                        action_id = save_action_state('apply_data_start', f"Data starts at row {data_start_input}")
 
-                    if st.button("Click to Apply Headers and Data Start", key="choose_headers_btn", type="primary"):
-                            # Save current state before applying changes
-                            action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
+                        sliced_data = apply_data_start(data_start_input)
 
-                            current_data = st.session_state.working_data # always use working data
-                            raw_headers = current_data[header_row_input]
-                            clean_headers = clean_duplicate_headers(raw_headers)
-                            data = current_data[data_start_input:]
-                
-                            # Store headers in session state
-                            st.session_state.current_headers = clean_headers
-                            st.session_state.raw_headers = raw_headers
-                            st.session_state.header_row_index = header_row_input
-                            st.session_state.data_start_index = data_start_input
-
-                            # Update main table
-                            update_display_table(data)
-                            st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
+                         # Update main table
+                        update_display_table(st.session_state.working_data)
+                        st.success(f"Data now starts at former row {data_start_input}!")
 
             # Remove duplicate header rows
             with st.expander("Remove Duplicate Headers"):
