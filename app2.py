@@ -8,7 +8,8 @@ import pandas as pd
 # Import custom functions
 from table_functions import (save_action_state, fix_concatenated_table, undo_fix_concatenated_action,
                              clean_duplicate_headers, undo_headers_action, update_display_table,
-                             remove_duplicate_headers, undo_remove_duplicates_action)
+                             remove_duplicate_headers, undo_remove_duplicates_action, delete_unwanted_rows,
+                             undo_delete_rows_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -54,7 +55,7 @@ if uploaded_file is not None:
             st.session_state.main_table = combined_table
             # Convert dataframe to list of lists for processing
             st.session_state.table_as_list = combined_table.values.tolist()
-            # Always preserve original data
+            # Always preserve 
             st.session_state.original_table_data = st.session_state.table_as_list.copy()
             st.session_state.working_data = st.session_state.table_as_list.copy()
             st.session_state.current_headers = None
@@ -99,6 +100,11 @@ if uploaded_file is not None:
                     elif action['type'] == 'remove_duplicates':
                         if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
                             undo_remove_duplicates_action(action['id'])
+
+                    elif action['type'] == 'delete_unwanted_rows':
+                        if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
+                            undo_delete_rows_action(action['id'])
+
 
                     st.divider()
             else:
@@ -174,8 +180,8 @@ if uploaded_file is not None:
                     # Save current state before applying changes
                     action_id = save_action_state('fix_concatenated', "Fix Concatenated Rows")
 
-                    # Always work from original data
-                    source_data = st.session_state.original_table_data
+                    # Always work from working data
+                    source_data = st.session_state.working_data
                     fixed_table = fix_concatenated_table(source_data)
                     if fixed_table:
                         st.session_state.working_data = fixed_table # Update single working copy
@@ -184,6 +190,51 @@ if uploaded_file is not None:
                         st.success("Table rows have been separated!")
                         st.rerun() # Refresh to show changes
 
+            # Delete unwanted rows without real data
+            with st.expander("Delete Rows"):
+                # Input for choosing rows to delete
+                delete_row_input = st.radio("Select which rows to remove - Column 1 should not include these values:",
+                            ["empty space", "letters", "numbers", "symbols", "other"],
+                            index=None,)
+                
+                # Show text input if "other" is selected
+                custom_pattern = None
+                if delete_row_input == "other":
+                    custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
+                                                   placeholder="e.g. Total|Subtotal or ^Page \\d+",
+                                                   help="Use regex paterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
+                                                
+                if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
+                    if delete_row_input is None:
+                        st.error("Please select a row type to delete first")
+                    elif delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
+                        st.error("Please enter a custom pattern when 'other' is selected")
+                    else:
+                        # Save current state before applying changes
+                        action_id = save_action_state('delete_rows', "Delete Unwanted Rows")
+                        
+                        # Convert radio selection to regex pattern
+                        if delete_row_input == "empty space":
+                            search_pattern = r"^\s*$"  # Match empty or whitespace-only cells
+                        elif delete_row_input == "letters":
+                            search_pattern = r"^[A-Za-z\s]+$"  # Match cells with only letters and spaces
+                        elif delete_row_input == "numbers":
+                            search_pattern = r"^[\d\s.,]+$"  # Match cells with only numbers, spaces, commas, periods
+                        elif delete_row_input == "symbols":
+                            search_pattern = r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
+                        elif delete_row_input == "other":
+                            search_pattern = custom_pattern # Use the custom pattern
+
+                    # Always work from working data
+                    source_data = st.session_state.working_data
+                    cleaned_table = delete_unwanted_rows(search_pattern)
+
+                    if cleaned_table:
+                        st.session_state.working_data = cleaned_table # Update single working copy
+                        # Use helper function to handle all formatting automatically
+                        update_display_table(cleaned_table)
+                        st.success(f"Deleted rows where first cell contains: {delete_row_input}")
+                        st.rerun() # Refresh to show changes
 
         # Reset button to start over
         if st.button("Reset to Original", key="reset_btn", type="primary"):

@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import uuid
 from datetime import datetime
+import re
 
 
 def save_action_state(action_type, action_name):
@@ -162,6 +163,35 @@ def clean_duplicate_headers(headers):
 
 def undo_headers_action(action_id):
     """Undo specific headers action"""
+
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+    st.rerun()
+
+def delete_unwanted_rows(search_pattern):
+    """Delete rows that don't contain actual data - pick by input"""
+    kept_rows = []
+    for i, row in enumerate(st.session_state.working_data):
+        # Check if the first cell in the row matches the pattern
+        first_cell = str(row[0]) if row and row[0] is not None else ""
+        if not re.search(search_pattern, first_cell): # Keep rows that don't match
+            kept_rows.append(row)
+    return kept_rows
+
+
+def undo_delete_rows_action(action_id):
+    """Undo specific fix concatenated action"""
 
     action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
     target_action = st.session_state.applied_actions[action_index]
