@@ -105,8 +105,6 @@ if uploaded_file is not None:
                         if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
                             undo_delete_rows_action(action['id'])
 
-
-                    st.divider()
             else:
                 st.info("No actions applied yet")
 
@@ -151,9 +149,8 @@ if uploaded_file is not None:
                             st.session_state.data_start_index = data_start_input
 
                             # Update main table
-                            st.session_state.main_table = pd.DataFrame(data, columns=clean_headers)
+                            update_display_table(data)
                             st.success(f"Headers applied from row {header_row_input}, data starts at row {data_start_input}!")
-                            st.rerun()
 
             # Remove duplicate header rows
             with st.expander("Remove Duplicate Headers"):
@@ -170,7 +167,6 @@ if uploaded_file is not None:
                         # Use helper function to handle formatting
                         update_display_table(cleaned_data)
                         st.success("Removed duplicate headers rows!")
-                        st.rerun()
                 else:
                     st.info("Please select headers first to identify which rows to remove")
 
@@ -184,11 +180,9 @@ if uploaded_file is not None:
                     source_data = st.session_state.working_data
                     fixed_table = fix_concatenated_table(source_data)
                     if fixed_table:
-                        st.session_state.working_data = fixed_table # Update single working copy
                         # Use helper function to handle all formatting automatically
                         update_display_table(fixed_table)
                         st.success("Table rows have been separated!")
-                        st.rerun() # Refresh to show changes
 
             # Delete unwanted rows without real data
             with st.expander("Delete Rows"):
@@ -211,7 +205,7 @@ if uploaded_file is not None:
                         st.error("Please enter a custom pattern when 'other' is selected")
                     else:
                         # Save current state before applying changes
-                        action_id = save_action_state('delete_rows', "Delete Unwanted Rows")
+                        action_id = save_action_state('delete_unwanted_rows', "Delete Unwanted Rows")
                         
                         # Convert radio selection to regex pattern
                         if delete_row_input == "empty space":
@@ -224,33 +218,34 @@ if uploaded_file is not None:
                             search_pattern = r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
                         elif delete_row_input == "other":
                             search_pattern = custom_pattern # Use the custom pattern
+                        
+                        # Only proceed if we have a valid pattern
+                        if search_pattern:
+                            # Always work from working data
+                            cleaned_table = delete_unwanted_rows(search_pattern)
 
-                    # Always work from working data
-                    source_data = st.session_state.working_data
-                    cleaned_table = delete_unwanted_rows(search_pattern)
+                            if cleaned_table:
+                                # Use helper function to handle all formatting automatically
+                                update_display_table(cleaned_table)
+                                st.success(f"Deleted rows where first cell contains: {delete_row_input}")
+                                if 'debug_matches' in st.session_state:
+                                    st.write("Rows that matched pattern:", st.session_state.debug_matches)
+                                    del st.session_state.debug_matches
 
-                    if cleaned_table:
-                        st.session_state.working_data = cleaned_table # Update single working copy
-                        # Use helper function to handle all formatting automatically
-                        update_display_table(cleaned_table)
-                        st.success(f"Deleted rows where first cell contains: {delete_row_input}")
-                        st.rerun() # Refresh to show changes
+            # Reset button to start over
+            if st.button("Reset to Original", key="reset_btn", type="primary"):
+                if all_tables:
+                    combined_table = pd.concat(all_tables, ignore_index=True)
+                    st.session_state.main_table = combined_table
+                    st.session_state.table_as_list = combined_table.values.tolist()
+                    st.session_state.working_data = combined_table.values.tolist()
 
-        # Reset button to start over
-        if st.button("Reset to Original", key="reset_btn", type="primary"):
-            if all_tables:
-                combined_table = pd.concat(all_tables, ignore_index=True)
-                st.session_state.main_table = combined_table
-                st.session_state.table_as_list = combined_table.values.tolist()
-                st.session_state.working_data = combined_table.values.tolist()
+                    # Clear ALL session state variables including applied_actions
+                    for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
+                        if key in st.session_state:
+                            del st.session_state[key]
 
-                # Clear ALL session state variables including applied_actions
-                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-
-                st.success("Table reset to original!")
-                st.rerun()
+                    st.success("Table reset to original!")
 
     # Fallback: show text for manual copy/paste
     if not all_tables:

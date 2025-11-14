@@ -82,7 +82,6 @@ def undo_remove_duplicates_action(action_id):
     st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
-    st.rerun()
 
 def fix_concatenated_table(table):
     """Fix tables where PDFPlumber concatenates column data"""
@@ -134,7 +133,6 @@ def undo_fix_concatenated_action(action_id):
     st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
-    st.rerun()
 
 def clean_duplicate_headers(headers):
     """Clean duplicate headers by appending numbers to duplicates"""
@@ -177,18 +175,25 @@ def undo_headers_action(action_id):
     st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
-    st.rerun()
 
 def delete_unwanted_rows(search_pattern):
     """Delete rows that don't contain actual data - pick by input"""
     kept_rows = []
+    matched_rows = []
+    
     for i, row in enumerate(st.session_state.working_data):
         # Check if the first cell in the row matches the pattern
         first_cell = str(row[0]) if row and row[0] is not None else ""
-        if not re.search(search_pattern, first_cell): # Keep rows that don't match
+        if re.search(search_pattern, first_cell):
+            matched_rows.append(i, first_cell)
+        else:
             kept_rows.append(row)
-    return kept_rows
 
+    # Store matches in session state to show later
+    if matched_rows:
+        st.session_state.debug_matches = matched_rows
+
+    return kept_rows
 
 def undo_delete_rows_action(action_id):
     """Undo specific fix concatenated action"""
@@ -206,4 +211,3 @@ def undo_delete_rows_action(action_id):
     st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
-    st.rerun()
