@@ -6,10 +6,10 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import (save_action_state, fix_concatenated_table, undo_fix_concatenated_action,
-                             clean_duplicate_headers, undo_headers_action, update_display_table,
-                             remove_duplicate_headers, undo_remove_duplicates_action, delete_unwanted_rows,
-                             undo_delete_rows_action)
+from table_functions import (save_action_state, choose_headers, undo_choose_headers_action, apply_data_start,
+                             undo_data_start_action, fix_concatenated_table, undo_fix_concatenated_action,
+                             update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
+                             delete_unwanted_rows, undo_delete_rows_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -95,11 +95,16 @@ if uploaded_file is not None:
 
                     elif action['type'] == 'apply_headers':
                         if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
-                            undo_headers_action(action['id'])
+                            undo_choose_headers_action(action['id'])
                     
                     elif action['type'] == 'remove_duplicates':
                         if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
                             undo_remove_duplicates_action(action['id'])
+
+                    elif action['type'] == 'apply_data_start':
+                        if st.button(f"↶ Undo Apply Data Start", key=f"undo_data_start_{action['id']}", type="secondary"):
+                            undo_data_start_action(action['id'])
+
 
                     elif action['type'] == 'delete_unwanted_rows':
                         if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
@@ -128,7 +133,7 @@ if uploaded_file is not None:
                     if st.button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
                         # Save current state before applying changes
                         action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
-                        clean_headers = clean_duplicate_headers(header_row_input)
+                        choose_headers(header_row_input)
 
                         # Update main table
                         update_display_table(st.session_state.working_data)
@@ -139,9 +144,9 @@ if uploaded_file is not None:
                 if 'current_headers' in st.session_state and st.session_state.current_headers:
                     # Row input for data start
                     data_start_input = st.number_input("Select the first row that contains actual data",
-                                                min_value=header_row_input + 1,
-                                                max_value=len(st.session_state.table_as_list),
-                                                value=header_row_input + 1,
+                                                min_value=st.session_state.get('header_row_index', 0) + 1,
+                                                max_value=len(st.session_state.working_data) - 1,
+                                                value=st.session_state.get('header_row_index', 0) + 1,
                                                 key="data_start_selector")
                     if st.button("Apply Data Start", key="data_start_btn", type="primary"):
                         action_id = save_action_state('apply_data_start', f"Data starts at row {data_start_input}")
@@ -149,14 +154,14 @@ if uploaded_file is not None:
                         sliced_data = apply_data_start(data_start_input)
 
                          # Update main table
-                        update_display_table(st.session_state.working_data)
+                        update_display_table(sliced_data)
                         st.success(f"Data now starts at former row {data_start_input}!")
 
             # Remove duplicate header rows
             with st.expander("Remove Duplicate Headers"):
                 if 'header_row_index' in st.session_state and st.session_state.header_row_index is not None:
                     st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
-                    if st.button("Remove Duplicate Header Hows", key = "remove_duplicates_btn", type="primary"):
+                    if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                         # Save current state before applying changes
                         action_id = save_action_state('remove_duplicates', f"Remove Duplicate Headers (Row {st.session_state.header_row_index})")
 
@@ -166,7 +171,7 @@ if uploaded_file is not None:
 
                         # Use helper function to handle formatting
                         update_display_table(cleaned_data)
-                        st.success("Removed duplicate headers rows!")
+                        st.success("Removed duplicate header rows!")
                 else:
                     st.info("Please select headers first to identify which rows to remove")
 
@@ -196,7 +201,7 @@ if uploaded_file is not None:
                 if delete_row_input == "other":
                     custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
                                                    placeholder="e.g. Total|Subtotal or ^Page \\d+",
-                                                   help="Use regex paterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
+                                                   help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
                                                 
                 if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
                     if delete_row_input is None:
@@ -205,7 +210,7 @@ if uploaded_file is not None:
                         st.error("Please enter a custom pattern when 'other' is selected")
                     else:
                         # Save current state before applying changes
-                        action_id = save_action_state('delete_unwanted_rows', "Delete Unwanted Rows")
+                        action_id = save_action_state('delete_unwanted_rows', f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
                         
                         # Convert radio selection to regex pattern
                         if delete_row_input == "empty space":
@@ -227,7 +232,7 @@ if uploaded_file is not None:
                             if cleaned_table:
                                 # Use helper function to handle all formatting automatically
                                 update_display_table(cleaned_table)
-                                st.success(f"Deleted rows where first cell contains: {delete_row_input}")
+                                st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
                                 if 'debug_matches' in st.session_state:
                                     st.write("Rows that matched pattern:", st.session_state.debug_matches)
                                     del st.session_state.debug_matches
@@ -241,7 +246,7 @@ if uploaded_file is not None:
                     st.session_state.working_data = combined_table.values.tolist()
 
                     # Clear ALL session state variables including applied_actions
-                    for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
+                    for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
                         if key in st.session_state:
                             del st.session_state[key]
 

@@ -27,7 +27,7 @@ def save_action_state(action_type, action_name):
 
 def update_display_table(new_working_data):
     """
-    Update the main display table with current formatting settins
+    Update the main display table with current formatting settings
     Handles headers and data start automatically
     """
     # Update working data
@@ -48,18 +48,71 @@ def update_display_table(new_working_data):
     # Update display
     st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
 
+def clean_duplicate_headers(headers):
+    """
+    Clean duplicate headers by appending numbers to duplicates
+    This function is used in choose_headers function
+    """
+
+    clean_headers = [] # Store final cleaned header names
+    seen_headers = {} # Track how many times each header appears
+
+    for header in headers:
+        # Convert to string and handle None/empty values
+        if header is None or header == '' or str(header).strip() == '':
+            header = "Unnamed"
+        else:
+            header = str(header).strip()
+
+        # Handle duplicates
+        if header in seen_headers:
+            seen_headers[header] += 1
+            unique_header = f"{header}_{seen_headers[header]}" # Add number suffix
+        else:
+            seen_headers[header] = 0
+            unique_header = header # Keep original name
+        
+        clean_headers.append(unique_header)
+
+    return clean_headers
+
 def choose_headers(header_row_input):
     """Apply headers from specified row without changing data start"""
     current_data = st.session_state.working_data
 
     # Extract and clean headers
     raw_headers = current_data[header_row_input]
-    clean_headers = clean_duplicate_headers(raw_headers)
+    clean_headers = clean_duplicate_headers(raw_headers) 
+
+    # Store header info in session state
+    st.session_state.current_headers = clean_headers
+    st.session_state.raw_headers = raw_headers
+    st.session_state.header_row_index = header_row_input
+
+    return clean_headers
+
+def undo_choose_headers_action(action_id):
+    """Undo choose headers action"""
+
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+
 
 def remove_duplicate_headers(table_data, header_row_index):
     """
     Remove duplicate header rows from table data
-    Keeps first occurrence of header row and removes subsequet duplicates
+    Keeps first occurrence of header row and removes subsequent duplicates
     """
     if not table_data or header_row_index >= len(table_data):
         return table_data
@@ -90,6 +143,38 @@ def undo_remove_duplicates_action(action_id):
     st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
+
+def apply_data_start(data_start_input):
+    """Set data start point and slice working data accordingly"""
+    # Store data start index
+    st.session_state.data_start_index = data_start_input
+
+    # Get sliced data from working data
+    current_data = st.session_state.working_data
+    sliced_data = current_data[data_start_input:]
+
+    return sliced_data
+
+def undo_data_start_action(action_id):
+    """Undo specific data start action"""
+    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
+    target_action = st.session_state.applied_actions[action_index]
+
+    # Restore state from before this action
+    st.session_state.working_data = target_action['working_data']
+    st.session_state.current_headers = target_action['current_headers']
+    if target_action['main_table'] is not None:
+        st.session_state.main_table = target_action['main_table']
+
+    # Clear data start index
+    if 'data_start_index' in st.session_state:
+        del st.session_state.data_start_index
+    
+    # Remove this action and all subsequent actions
+    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
+    
+    st.success(f"Undone: {target_action['name']} and all subsequent actions")
+
 
 def fix_concatenated_table(table):
     """Fix tables where PDFPlumber concatenates column data"""
@@ -142,48 +227,6 @@ def undo_fix_concatenated_action(action_id):
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
-def clean_duplicate_headers(headers):
-    """Clean duplicate headers by appending numbers to duplicates"""
-
-    clean_headers = [] # Store final cleaned header names
-    seen_headers = {} # Track how many times each header appears
-
-    for header in headers:
-        # Convert to string and handle None/empty values
-        if header is None or header == '' or str(header).strip() == '':
-            header = "Unnamed"
-        else:
-            header = str(header).strip()
-
-        # Handle duplicates
-        if header in seen_headers:
-            seen_headers[header] += 1
-            unique_header = f"{header}_{seen_headers[header]}" # Add number suffix
-        else:
-            seen_headers[header] = 0
-            unique_header = header # Keep original name
-        
-        clean_headers.append(unique_header)
-
-    return clean_headers
-
-def undo_headers_action(action_id):
-    """Undo specific headers action"""
-
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
-
 def delete_unwanted_rows(search_pattern):
     """Delete rows that don't contain actual data - pick by input"""
     kept_rows = []
@@ -193,7 +236,7 @@ def delete_unwanted_rows(search_pattern):
         # Check if the first cell in the row matches the pattern
         first_cell = str(row[0]) if row and row[0] is not None else ""
         if re.search(search_pattern, first_cell):
-            matched_rows.append(i, first_cell)
+            matched_rows.append((i, first_cell))
         else:
             kept_rows.append(row)
 
