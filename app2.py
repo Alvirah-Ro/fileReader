@@ -86,29 +86,33 @@ if uploaded_file is not None:
                 for i, action in enumerate(reversed(st.session_state.applied_actions)):
                     with st.container():
                         st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
-                        st.write(f"_Applied at: {action['timestamp']}_")
+                        # st.write(f"_Applied at: {action['timestamp']}_")
 
                     # Specific undo button for each action type
                     if action['type'] == 'fix_concatenated':
                         if st.button(f"↶ Undo Fix", key=f"undo_fix_{action['id']}", type="secondary"):
                             undo_fix_concatenated_action(action['id'])
+                            st.rerun()
 
                     elif action['type'] == 'apply_headers':
                         if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
                             undo_choose_headers_action(action['id'])
+                            st.rerun()
                     
                     elif action['type'] == 'remove_duplicates':
                         if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
                             undo_remove_duplicates_action(action['id'])
+                            st.rerun()
 
                     elif action['type'] == 'apply_data_start':
                         if st.button(f"↶ Undo Apply Data Start", key=f"undo_data_start_{action['id']}", type="secondary"):
                             undo_data_start_action(action['id'])
-
+                            st.rerun()
 
                     elif action['type'] == 'delete_unwanted_rows':
                         if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
                             undo_delete_rows_action(action['id'])
+                            st.rerun()
 
             else:
                 st.info("No actions applied yet")
@@ -125,7 +129,7 @@ if uploaded_file is not None:
                 st.write("#### Choose Header Row")
                 if 'table_as_list' in st.session_state:
                     header_row_input = st.number_input("Select the first row that includes headers",
-                                                    min_value=0, 
+                                                    min_value=0,
                                                     max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
                                                     value=0,
                                                     key="header_row_selector")
@@ -137,7 +141,8 @@ if uploaded_file is not None:
 
                         # Update main table
                         update_display_table(st.session_state.working_data)
-                        st.success(f"Headers applied from row {header_row_input}!")
+                        st.toast(f"Headers applied from row {header_row_input}!")
+                        st.rerun()
 
             # Choose row where actual data starts
             with st.expander("Choose Data Start"):
@@ -156,6 +161,7 @@ if uploaded_file is not None:
                          # Update main table
                         update_display_table(sliced_data)
                         st.success(f"Data now starts at former row {data_start_input}!")
+                        st.rerun()
 
             # Remove duplicate header rows
             with st.expander("Remove Duplicate Headers"):
@@ -172,8 +178,10 @@ if uploaded_file is not None:
                         # Use helper function to handle formatting
                         update_display_table(cleaned_data)
                         st.success("Removed duplicate header rows!")
+                        st.rerun()
                 else:
                     st.info("Please select headers first to identify which rows to remove")
+
 
             # Fix concatenated data
             with st.expander("Fix Rows"):
@@ -188,6 +196,7 @@ if uploaded_file is not None:
                         # Use helper function to handle all formatting automatically
                         update_display_table(fixed_table)
                         st.success("Table rows have been separated!")
+                        st.rerun()
 
             # Delete unwanted rows without real data
             with st.expander("Delete Rows"):
@@ -233,6 +242,7 @@ if uploaded_file is not None:
                                 # Use helper function to handle all formatting automatically
                                 update_display_table(cleaned_table)
                                 st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                                st.rerun()
                                 if 'debug_matches' in st.session_state:
                                     st.write("Rows that matched pattern:", st.session_state.debug_matches)
                                     del st.session_state.debug_matches
@@ -251,6 +261,7 @@ if uploaded_file is not None:
                             del st.session_state[key]
 
                     st.success("Table reset to original!")
+                    st.rerun()
 
     # Fallback: show text for manual copy/paste
     if not all_tables:
