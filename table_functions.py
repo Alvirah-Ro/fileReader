@@ -9,15 +9,15 @@ from datetime import datetime
 import re
 
 
-def save_action_state(action_type, action_name):
+def save_action_state(action_type, action_name, params=None):
     """Save current state before applying an action"""
-
     action_id = str(uuid.uuid4())[:8]
     action_data= {
         'id': action_id,
         'type': action_type,
         'name': action_name,
         'timestamp': datetime.now().strftime("%H:%M:%S"),
+        'params': params or {}, # store parameters here
         'working_data': st.session_state.working_data.copy(),
         'current_headers': st.session_state.get('current_headers', None),
         'main_table': st.session_state.main_table.copy() if 'main_table' in st.session_state else None

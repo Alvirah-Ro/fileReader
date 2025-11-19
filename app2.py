@@ -136,7 +136,11 @@ if uploaded_file is not None:
         
                     if st.button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
                         # Save current state before applying changes
-                        action_id = save_action_state('apply_headers', f"Headers from row {header_row_input}")
+                        action_id = save_action_state(
+                            'apply_headers',
+                            f"Headers from row {header_row_input}",
+                            params={'header_row_input': int(header_row_input)}
+                        )
                         choose_headers(header_row_input)
 
                         # Update main table
@@ -154,7 +158,11 @@ if uploaded_file is not None:
                                                 value=st.session_state.get('header_row_index', 0) + 1,
                                                 key="data_start_selector")
                     if st.button("Apply Data Start", key="data_start_btn", type="primary"):
-                        action_id = save_action_state('apply_data_start', f"Data starts at row {data_start_input}")
+                        action_id = save_action_state(
+                            'apply_data_start',
+                            f"Data starts at row {data_start_input}",
+                            params={'data_start_index': int(data_start_input)}
+                        )
 
                         sliced_data = apply_data_start(data_start_input)
 
@@ -169,7 +177,11 @@ if uploaded_file is not None:
                     st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
                     if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                         # Save current state before applying changes
-                        action_id = save_action_state('remove_duplicates', f"Remove Duplicate Headers (Row {st.session_state.header_row_index})")
+                        action_id = save_action_state(
+                            'remove_duplicates',
+                            f"Remove Duplicate Header Rows",
+                            params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
+                        )
 
                         # Work from current working data
                         source_data = st.session_state.working_data
@@ -187,7 +199,11 @@ if uploaded_file is not None:
             with st.expander("Fix Rows"):
                 if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
                     # Save current state before applying changes
-                    action_id = save_action_state('fix_concatenated', "Fix Concatenated Rows")
+                    action_id = save_action_state(
+                        'fix_concatenated',
+                        "Fix Concatenated Rows",
+                        params={}
+                    )
 
                     # Always work from working data
                     source_data = st.session_state.working_data
@@ -219,7 +235,15 @@ if uploaded_file is not None:
                         st.error("Please enter a custom pattern when 'other' is selected")
                     else:
                         # Save current state before applying changes
-                        action_id = save_action_state('delete_unwanted_rows', f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                        action_id = save_action_state(
+                            'delete_unwanted_rows',
+                            f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}"
+                            params={
+                                'pattern': search_pattern,
+                                'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
+                                'scope': 'first_cell'
+                            }
+                        )
                         
                         # Convert radio selection to regex pattern
                         if delete_row_input == "empty space":

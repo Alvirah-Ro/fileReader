@@ -7,10 +7,10 @@ import streamlit as st
 import json, os, re
 from datetime import datetime, UTC
 
-from table_functions import (save_action_state, choose_headers, undo_choose_headers_action, apply_data_start,
-                             undo_data_start_action, fix_concatenated_table, undo_fix_concatenated_action,
-                             update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
-                             delete_unwanted_rows, undo_delete_rows_action)
+from table_functions import (choose_headers, apply_data_start,
+                             fix_concatenated_table,
+                             update_display_table, remove_duplicate_headers,
+                             delete_unwanted_rows)
 
 
 # Relative folder where all templates live 
