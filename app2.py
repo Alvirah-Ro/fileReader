@@ -83,46 +83,7 @@ if uploaded_file is not None:
         # Create columns for table and actions panel
         col_choices, col_break, col_actions = st.columns([3, 1, 3])
 
-        with col_actions:
-            st.write("### Applied Actions")
-            if st.session_state.applied_actions:
-                for i, action in enumerate(reversed(st.session_state.applied_actions)):
-                    with st.container():
-                        st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
-                        # st.write(f"_Applied at: {action['timestamp']}_")
-
-                    # Specific undo button for each action type
-                    if action['type'] == 'fix_concatenated':
-                        if st.button(f"↶ Undo Fix", key=f"undo_fix_{action['id']}", type="secondary"):
-                            undo_fix_concatenated_action(action['id'])
-                            st.rerun()
-
-                    elif action['type'] == 'apply_headers':
-                        if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
-                            undo_choose_headers_action(action['id'])
-                            st.rerun()
-                    
-                    elif action['type'] == 'remove_duplicates':
-                        if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
-                            undo_remove_duplicates_action(action['id'])
-                            st.rerun()
-
-                    elif action['type'] == 'apply_data_start':
-                        if st.button(f"↶ Undo Apply Data Start", key=f"undo_data_start_{action['id']}", type="secondary"):
-                            undo_data_start_action(action['id'])
-                            st.rerun()
-
-                    elif action['type'] == 'delete_unwanted_rows':
-                        if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
-                            undo_delete_rows_action(action['id'])
-                            st.rerun()
-
-            else:
-                st.info("No actions applied yet")
-
-        with col_break:
-            st.write("")
-            
+        # Column on the left to display formatting choices    
         with col_choices:
             # Header and Data start selection
             st.write("### Formatting Choices")
@@ -221,7 +182,7 @@ if uploaded_file is not None:
                         st.rerun()
 
             # Delete unwanted rows without real data
-            with st.expander("Delete Rows"):
+            with st.expander("Alter Rows"):
                 # Input for choosing rows to delete
                 delete_row_input = st.radio("Select which rows to remove - Column 1 should not include these values:",
                             ["empty space", "letters", "numbers", "symbols", "other"],
@@ -273,6 +234,43 @@ if uploaded_file is not None:
                         st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
                         st.rerun()
 
+            with st.expander("Alter columns"):
+                st.write("Add a Net-per-Item Column")
+                retail_price_col = st.number_input("From the left, enter the column number for retail or unit price",
+                                                   min_value=0,
+                                                   max_value=len(st.session_state.current_headers),
+                                                   value=0,
+                                                   key="retail_price_col_selector"
+                                                   )
+                discount_percent_col = st.number_input("From the left, enter the column number for discounted percentage",
+                                                   min_value=0,
+                                                   max_value=len(st.session_state.current_headers),
+                                                   value=0,
+                                                   key="discount_percent_col_selector"
+                                                   )
+                if retail_price_col and discount_percent_col:
+                    retail_price_values = [row[retail_price_col - 1] for row in st.session_state.working_data if len(row) > retail_price_col]
+                    discount_percent_values = [row[discount_percent_col - 1] for row in st.session_state.working_data if len(row) > discount_percent_col]
+                    st.write("Retail price values:", retail_price_values)
+                    st.write("Dicount percentage values:", discount_percent_values)
+
+
+                    for row in st.session_state.working_data:
+                        net_item_values = row[retail_price_col - 1] * ((100 - row[discount_percent_col]) / 100)
+                    for i, row in enumerate(st.session_state.working_data):
+                        row.insert(discount_percent_col, new_item_values[i])
+                    
+                    if st.session_state.get("curent_headers"):
+                        st.session_state.current_headers.insert(discount_percent_col, "Item Net")
+                    
+                    update_display_table(st.session_state.working_data)
+                    
+                
+                if retail_price_col and discount_percent_col:
+                    st.write("Retail price values:", retail_price_values)
+                    st.write("Dicount percentage values:", discount_percent_values)
+
+
             # Reset button to start over
             if st.button("Reset to Original", key="reset_btn", type="primary"):
                 if all_tables:
@@ -288,6 +286,48 @@ if uploaded_file is not None:
 
                     st.success("Table reset to original!")
                     st.rerun()
+
+        # Space between columns
+        with col_break:
+            st.write("")
+
+        # Column on the right to display applied actions
+        with col_actions:
+            st.write("### Applied Actions")
+            if st.session_state.applied_actions:
+                for i, action in enumerate(reversed(st.session_state.applied_actions)):
+                    with st.container():
+                        st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
+                        # st.write(f"_Applied at: {action['timestamp']}_")
+
+                    # Specific undo button for each action type
+                    if action['type'] == 'fix_concatenated':
+                        if st.button(f"↶ Undo Fix", key=f"undo_fix_{action['id']}", type="secondary"):
+                            undo_fix_concatenated_action(action['id'])
+                            st.rerun()
+
+                    elif action['type'] == 'apply_headers':
+                        if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
+                            undo_choose_headers_action(action['id'])
+                            st.rerun()
+                    
+                    elif action['type'] == 'remove_duplicates':
+                        if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
+                            undo_remove_duplicates_action(action['id'])
+                            st.rerun()
+
+                    elif action['type'] == 'apply_data_start':
+                        if st.button(f"↶ Undo Apply Data Start", key=f"undo_data_start_{action['id']}", type="secondary"):
+                            undo_data_start_action(action['id'])
+                            st.rerun()
+
+                    elif action['type'] == 'delete_unwanted_rows':
+                        if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
+                            undo_delete_rows_action(action['id'])
+                            st.rerun()
+
+            else:
+                st.info("No actions applied yet")
 
         # Button to save template to disk
         if st.session_state.applied_actions:
