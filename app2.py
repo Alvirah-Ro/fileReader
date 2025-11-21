@@ -222,6 +222,7 @@ if uploaded_file is not None:
                             index=None,)
                 
                 # Show text input if "other" is selected
+                search_pattern = None
                 custom_pattern = None
                 if delete_row_input == "other":
                     custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
@@ -231,45 +232,40 @@ if uploaded_file is not None:
                 if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
                     if delete_row_input is None:
                         st.error("Please select a row type to delete first")
-                    elif delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
+                        st.stop() # Early exit to halt remainder of script for this rerun
+                    if delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
                         st.error("Please enter a custom pattern when 'other' is selected")
-                    else:
-                        # Save current state before applying changes
-                        action_id = save_action_state(
-                            'delete_unwanted_rows',
-                            f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}"
-                            params={
-                                'pattern': search_pattern,
-                                'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
-                                'scope': 'first_cell'
-                            }
-                        )
-                        
-                        # Convert radio selection to regex pattern
-                        if delete_row_input == "empty space":
-                            search_pattern = r"^\s*$"  # Match empty or whitespace-only cells
-                        elif delete_row_input == "letters":
-                            search_pattern = r"^[A-Za-z\s]+$"  # Match cells with only letters and spaces
-                        elif delete_row_input == "numbers":
-                            search_pattern = r"^[\d\s.,]+$"  # Match cells with only numbers, spaces, commas, periods
-                        elif delete_row_input == "symbols":
-                            search_pattern = r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
-                        elif delete_row_input == "other":
-                            search_pattern = custom_pattern # Use the custom pattern
-                        
-                        # Only proceed if we have a valid pattern
-                        if search_pattern:
-                            # Always work from working data
-                            cleaned_table = delete_unwanted_rows(search_pattern)
-
-                            if cleaned_table:
-                                # Use helper function to handle all formatting automatically
-                                update_display_table(cleaned_table)
-                                st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
-                                st.rerun()
-                                if 'debug_matches' in st.session_state:
-                                    st.write("Rows that matched pattern:", st.session_state.debug_matches)
-                                    del st.session_state.debug_matches
+                        st.stop()# Early exit to halt remainder of script for this rerun
+                    
+                    # Map choice to regex with a dictionary
+                    mapping = {
+                        "empty space": r"^\s*$",  # Match empty or whitespace-only cells
+                        "letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
+                        "numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
+                        "symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
+                    }
+                    search_pattern = mapping.get(delete_row_input, custom_pattern
+                                                 )
+                    # Save current state before applying changes
+                    action_id = save_action_state(
+                        'delete_unwanted_rows',
+                        f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}",
+                        params={
+                            'pattern': search_pattern,
+                            'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
+                            'scope': 'first_cell'
+                        }
+                    )
+                    
+                    cleaned_table = delete_unwanted_rows(search_pattern)
+                    if cleaned_table:
+                        # Use helper function to handle all formatting automatically
+                        update_display_table(cleaned_table)
+                        if 'debug_matches' in st.session_state:
+                            st.write("Rows that matched pattern:", st.session_state.debug_matches)
+                            del st.session_state.debug_matches
+                        st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                        st.rerun()
 
             # Reset button to start over
             if st.button("Reset to Original", key="reset_btn", type="primary"):
@@ -286,6 +282,8 @@ if uploaded_file is not None:
 
                     st.success("Table reset to original!")
                     st.rerun()
+
+
 
     # Fallback: show text for manual copy/paste
     if not all_tables:
