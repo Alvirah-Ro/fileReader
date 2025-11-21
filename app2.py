@@ -11,6 +11,9 @@ from table_functions import (save_action_state, choose_headers, undo_choose_head
                              update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
                              delete_unwanted_rows, undo_delete_rows_action)
 
+from template_functions import (save_template_to_disk, build_template_from_actions,
+                                list_templates, load_template_from_disk, replay_template)
+
 st.title('Automated PDF Table Extractor: Version K')
 
 # File uploader for PDF invoice
@@ -126,27 +129,30 @@ if uploaded_file is not None:
 
             # Choose row that contains headers
             with st.expander("Choose Headers"):
-                st.write("#### Choose Header Row")
-                if 'table_as_list' in st.session_state:
-                    header_row_input = st.number_input("Select the first row that includes headers",
-                                                    min_value=0,
-                                                    max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
-                                                    value=0,
-                                                    key="header_row_selector")
-        
-                    if st.button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
-                        # Save current state before applying changes
-                        action_id = save_action_state(
-                            'apply_headers',
-                            f"Headers from row {header_row_input}",
-                            params={'header_row_input': int(header_row_input)}
-                        )
-                        choose_headers(header_row_input)
+                with st.form("header_form"):
+                    st.write("#### Choose Header Row")
 
-                        # Update main table
-                        update_display_table(st.session_state.working_data)
-                        st.toast(f"Headers applied from row {header_row_input}!")
-                        st.rerun()
+                    if 'table_as_list' in st.session_state:
+                        header_row_input = st.number_input("Select the first row that includes headers",
+                                                        min_value=0,
+                                                        max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
+                                                        value=0,
+                                                        key="header_row_selector")
+
+                        # Wrap in a form to keep expander open when changing inputs
+                        if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
+                            # Save current state before applying changes
+                            action_id = save_action_state(
+                                'apply_headers',
+                                f"Headers from row {header_row_input}",
+                                params={'header_row_index': int(header_row_input)}
+                            )
+                            choose_headers(header_row_input)
+
+                            # Update main table
+                            update_display_table(st.session_state.working_data)
+                            st.toast(f"Headers applied from row {header_row_input}!")
+                            st.rerun()
 
             # Choose row where actual data starts
             with st.expander("Choose Data Start"):
@@ -283,6 +289,45 @@ if uploaded_file is not None:
                     st.success("Table reset to original!")
                     st.rerun()
 
+        # Button to save template to disk
+        if st.session_state.applied_actions:
+            st.write("#### Save Template")
+            template_name = st.text_input("Please enter name of template")
+            if template_name:
+                st.session_state.template_name = template_name
+                if st.button("Click to save template"):
+                    tpl = build_template_from_actions(st.session_state.applied_actions)
+                    # If tpl ["warnings"]: show st.warning for each
+                    path = save_template_to_disk(tpl)
+                    st.success(f"Template: {template_name} saved!")
+
+        st.write("#### Load Template")
+        template_list = list_templates() # Returns list of filenames
+
+        if not template_list:
+            st.info("No templates saved yet.")
+        else:
+            selected = st.selectbox(
+                "Choose a template to apply",
+                template_list,
+                index=None,
+                placeholder="Select template"
+            )
+            reset_before = st.checkbox("Reset to original before applying", value=True)
+
+            if selected and st.button(f"Apply Selected Template", type="primary"):
+                    tpl = load_template_from_disk(selected)
+                    if not tpl:
+                        st.error(f"Could not load template: {selected}")
+                    else:
+                        # Show any stored warnings prior to replay
+                        for w in tpl.get("warnings", []):
+                            st.warning(w)
+
+                    # Replay
+                    replay_template(tpl, reset_first=reset_before, log_steps=True)
+                    st.success(f"Template replayed: {tpl.get('name', selected)}")
+                    st.rerun()
 
 
     # Fallback: show text for manual copy/paste

@@ -1,0 +1,42 @@
+{
+  "name": "Kjos",
+  "version": "K",
+  "created_at": "2025-11-21T01:03:36.975050+00:00",
+  "actions": [
+    {
+      "type": "apply_headers",
+      "params": {
+        "header_row_index": 2
+      }
+    },
+    {
+      "type": "fix_concatenated",
+      "params": {}
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "^[A-Za-z\\s]+$",
+        "choice": "letters",
+        "scope": "first_cell"
+      }
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "^\\s*$",
+        "choice": "empty space",
+        "scope": "first_cell"
+      }
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "^\\d{6}$",
+        "choice": "other",
+        "scope": "first_cell"
+      }
+    }
+  ],
+  "warnings": []
+}
