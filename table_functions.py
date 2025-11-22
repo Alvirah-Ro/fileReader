@@ -48,6 +48,33 @@ def update_display_table(new_working_data):
     # Update display
     st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
 
+def to_float(value, default=0.0):
+    """
+    Convert mixed numeric cell content to float.
+    Handles: commas, %, currency symbols, parentheses for negatives.
+    Returns default (0.0) on failure
+    """
+    if value is None:
+        return default
+    s = str(value).strip()
+    if not s:
+        return default
+    # Handle negative parentheses: (123.45) -> -123.45
+    neg = False
+    if s.startswith("(") and s.endswith(")"):
+        neg = True
+        s = s[1:-1].strip()
+    # Remove common noise
+    for ch in ["$", "£", "€", ","]:
+        s = s.replace(ch, "")
+    s = s.replace("%", "")
+    # Final clean
+    try:
+        num = float(s)
+        return -num if neg else num
+    except:
+        return default
+
 def clean_duplicate_headers(headers):
     """
     Clean duplicate headers by appending numbers to duplicates
