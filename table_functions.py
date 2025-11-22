@@ -289,6 +289,52 @@ def undo_delete_rows_action(action_id):
     
     st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
+def add_net_item_col(retail_price_index, discount_percent_index, header_name="Item Net"):
+    """
+    Insert a net column (price * 1 - discount%) immediately after the discount column
+    Indices are zero-based.  Returns the updated working_data (list of rows).
+    """
+    working = st.session_state.working_data
+    # Determine widest row (ragged safety)
+    max_width = max((len(r) for r in working), default=0)
+    net_item_values = []
+        for row in working:
+            if len(row) <= max(retail_idx, discount_idx):
+                net_item_values.append("")
+                continue
+            price = to_float(row[retail_idx])
+            disc_percent = to_float(row[discount_idx])
+            net = price * (1 - disc_percent / 100)
+            net_item_values.append(round(net, 2))
+
+                        # Insert after discount column
+                        for i, row in enumerate(st.session_state.working_data):
+                            row.insert(discount_idx + 1, net_item_values[i])
+                        
+                        if st.session_state.get("current_headers"):
+                            st.session_state.current_headers.insert(discount_idx + 1, "Item Net")
+
+    
+                    retail_price_input = st.number_input("Column number for retail price (1 = first column)",
+                                                    min_value=1,
+                                                    max_value=max((len(r) for r in st.session_state.working_data),
+                                                                        default=0),
+                                                    value=1,
+                                                    key="retail_price_col_selector"
+                                                    )
+                    discount_percent_input = st.number_input("Column number for discount percent (1 = first column)",
+                                                    min_value=1,
+                                                    max_value=max((len(r) for r in st.session_state.working_data),
+                                                                        default=0),
+                                                    value=1,
+                                                    key="discount_percent_col_selector"
+                                                    )
+                    
+                    # Subtract 1 since users will be using 1 base instead of 0 base indexing
+                    retail_idx = retail_price_input - 1
+                    discount_idx = discount_percent_input - 1
+
+
 def undo_net_item_col_action(action_id):
     """Undo specific add item net column"""
     action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)

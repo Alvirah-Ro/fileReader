@@ -10,7 +10,7 @@ from datetime import datetime, UTC
 from table_functions import (choose_headers, apply_data_start,
                              fix_concatenated_table,
                              update_display_table, remove_duplicate_headers,
-                             delete_unwanted_rows)
+                             delete_unwanted_rows, to_float)
 
 
 # Relative folder where all templates live 
@@ -70,6 +70,12 @@ def build_template_from_actions(applied_actions):
             if "pattern" not in p:
                 warnings.append("Missing pattern for delete_unwanted_rows; step may be ineffective.")
                 p = {} # Keep but note incomplete
+        elif t == "add_net_item_col":
+            if "retail_price_index" not in p or "discount_percent_index" not in p:
+                p = {
+                    "retail_price_index": st.session_state.get('retail_price_index'),
+                     'discount_percent_index': st.session_state.get('discount_percent_index')
+                }
 
         tpl_actions.append({"type": t, "params": p})
 
@@ -118,6 +124,12 @@ def replay_template(tpl, reset_first=True, log_steps=False):
             pattern = p.get("pattern", "")
             cleaned = delete_unwanted_rows(pattern)
             update_display_table(cleaned)
+
+        elif t == "add_net_item_col":
+            retail_idx = p.get("retail_price_index")
+            discount_idx = p.get("discount_percent_index")
+            added = 
+            update_display_table()
 
         if log_steps:
             # optionally add entries to applied_actions

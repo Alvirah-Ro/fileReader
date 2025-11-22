@@ -88,220 +88,231 @@ if uploaded_file is not None:
             # Header and Data start selection
             st.write("### Formatting Choices")
 
-            # Choose row that contains headers
-            with st.expander("Choose Headers"):
-                with st.form("header_form"):
-                    st.write("#### Choose Header Row")
 
-                    if 'table_as_list' in st.session_state:
-                        header_row_input = st.number_input("Select the first row that includes headers",
-                                                        min_value=0,
-                                                        max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
-                                                        value=0,
-                                                        key="header_row_selector")
 
-                        # Wrap in a form to keep expander open when changing inputs
-                        if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
+            tab1, tab2, tab3, tab4 = st.tabs(["Headers", "Rows", "Columns", "Reset"])
+
+            with tab1:
+                # Choose row that contains headers
+                with st.expander("Choose Headers"):
+                    with st.form("header_form"):
+                        st.write("#### Choose Header Row")
+
+                        if 'table_as_list' in st.session_state:
+                            header_row_input = st.number_input("Select the first row that includes headers",
+                                                            min_value=0,
+                                                            max_value=len(st.session_state.table_as_list) - 1 if 'table_as_list' in st.session_state else 10,
+                                                            value=0,
+                                                            key="header_row_selector")
+
+                            # Wrap in a form to keep expander open when changing inputs
+                            if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
+                                # Save current state before applying changes
+                                action_id = save_action_state(
+                                    'apply_headers',
+                                    f"Headers from row {header_row_input}",
+                                    params={'header_row_index': int(header_row_input)}
+                                )
+                                choose_headers(header_row_input)
+
+                                # Update main table
+                                update_display_table(st.session_state.working_data)
+                                st.toast(f"Headers applied from row {header_row_input}!")
+                                st.rerun()
+
+                            # Remove duplicate header rows
+                with st.expander("Remove Duplicate Headers"):
+                    if 'header_row_index' in st.session_state and st.session_state.header_row_index is not None:
+                        st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
+                        if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                             # Save current state before applying changes
                             action_id = save_action_state(
-                                'apply_headers',
-                                f"Headers from row {header_row_input}",
-                                params={'header_row_index': int(header_row_input)}
+                                'remove_duplicates',
+                                f"Remove Duplicate Header Rows",
+                                params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
                             )
-                            choose_headers(header_row_input)
+
+                            # Work from current working data
+                            source_data = st.session_state.working_data
+                            cleaned_data = remove_duplicate_headers(source_data, st.session_state.header_row_index)
+
+                            # Use helper function to handle formatting
+                            update_display_table(cleaned_data)
+                            st.success("Removed duplicate header rows!")
+                            st.rerun()
+                    else:
+                        st.info("Please select headers first to identify which rows to remove")
+
+
+
+                # Choose row where actual data starts
+                with st.expander("Choose Data Start"):
+                    if 'current_headers' in st.session_state and st.session_state.current_headers:
+                        # Row input for data start
+                        data_start_input = st.number_input("Select the first row that contains actual data",
+                                                    min_value=st.session_state.get('header_row_index', 0) + 1,
+                                                    max_value=len(st.session_state.working_data) - 1,
+                                                    value=st.session_state.get('header_row_index', 0) + 1,
+                                                    key="data_start_selector")
+                        if st.button("Apply Data Start", key="data_start_btn", type="primary"):
+                            action_id = save_action_state(
+                                'apply_data_start',
+                                f"Data starts at row {data_start_input}",
+                                params={'data_start_index': int(data_start_input)}
+                            )
+
+                            sliced_data = apply_data_start(data_start_input)
 
                             # Update main table
-                            update_display_table(st.session_state.working_data)
-                            st.toast(f"Headers applied from row {header_row_input}!")
+                            update_display_table(sliced_data)
+                            st.success(f"Data now starts at former row {data_start_input}!")
                             st.rerun()
 
-            # Choose row where actual data starts
-            with st.expander("Choose Data Start"):
-                if 'current_headers' in st.session_state and st.session_state.current_headers:
-                    # Row input for data start
-                    data_start_input = st.number_input("Select the first row that contains actual data",
-                                                min_value=st.session_state.get('header_row_index', 0) + 1,
-                                                max_value=len(st.session_state.working_data) - 1,
-                                                value=st.session_state.get('header_row_index', 0) + 1,
-                                                key="data_start_selector")
-                    if st.button("Apply Data Start", key="data_start_btn", type="primary"):
-                        action_id = save_action_state(
-                            'apply_data_start',
-                            f"Data starts at row {data_start_input}",
-                            params={'data_start_index': int(data_start_input)}
-                        )
+            with tab2:
 
-                        sliced_data = apply_data_start(data_start_input)
-
-                         # Update main table
-                        update_display_table(sliced_data)
-                        st.success(f"Data now starts at former row {data_start_input}!")
-                        st.rerun()
-
-            # Remove duplicate header rows
-            with st.expander("Remove Duplicate Headers"):
-                if 'header_row_index' in st.session_state and st.session_state.header_row_index is not None:
-                    st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
-                    if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
+                # Fix concatenated data
+                with st.expander("Fix Rows"):
+                    if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
                         # Save current state before applying changes
                         action_id = save_action_state(
-                            'remove_duplicates',
-                            f"Remove Duplicate Header Rows",
-                            params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
+                            'fix_concatenated',
+                            "Fix Concatenated Rows",
+                            params={}
                         )
 
-                        # Work from current working data
+                        # Always work from working data
                         source_data = st.session_state.working_data
-                        cleaned_data = remove_duplicate_headers(source_data, st.session_state.header_row_index)
+                        fixed_table = fix_concatenated_table(source_data)
+                        if fixed_table:
+                            # Use helper function to handle all formatting automatically
+                            update_display_table(fixed_table)
+                            st.success("Table rows have been separated!")
+                            st.rerun()
 
-                        # Use helper function to handle formatting
-                        update_display_table(cleaned_data)
-                        st.success("Removed duplicate header rows!")
-                        st.rerun()
-                else:
-                    st.info("Please select headers first to identify which rows to remove")
-
-
-            # Fix concatenated data
-            with st.expander("Fix Rows"):
-                if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
-                    # Save current state before applying changes
-                    action_id = save_action_state(
-                        'fix_concatenated',
-                        "Fix Concatenated Rows",
-                        params={}
-                    )
-
-                    # Always work from working data
-                    source_data = st.session_state.working_data
-                    fixed_table = fix_concatenated_table(source_data)
-                    if fixed_table:
-                        # Use helper function to handle all formatting automatically
-                        update_display_table(fixed_table)
-                        st.success("Table rows have been separated!")
-                        st.rerun()
-
-            # Delete unwanted rows without real data
-            with st.expander("Alter Rows"):
-                # Input for choosing rows to delete
-                delete_row_input = st.radio("Select which rows to remove - Column 1 should not include these values:",
-                            ["empty space", "letters", "numbers", "symbols", "other"],
-                            index=None,)
-                
-                # Show text input if "other" is selected
-                search_pattern = None
-                custom_pattern = None
-                if delete_row_input == "other":
-                    custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
-                                                   placeholder="e.g. Total|Subtotal or ^Page \\d+",
-                                                   help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
-                                                
-                if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
-                    if delete_row_input is None:
-                        st.error("Please select a row type to delete first")
-                        st.stop() # Early exit to halt remainder of script for this rerun
-                    if delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
-                        st.error("Please enter a custom pattern when 'other' is selected")
-                        st.stop()# Early exit to halt remainder of script for this rerun
+                # Delete unwanted rows without real data
+                with st.expander("Alter Rows"):
+                    # Input for choosing rows to delete
+                    delete_row_input = st.radio("Select which rows to remove - Column 1 should not include these values:",
+                                ["empty space", "letters", "numbers", "symbols", "other"],
+                                index=None,)
                     
-                    # Map choice to regex with a dictionary
-                    mapping = {
-                        "empty space": r"^\s*$",  # Match empty or whitespace-only cells
-                        "letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
-                        "numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
-                        "symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
-                    }
-                    search_pattern = mapping.get(delete_row_input, custom_pattern
-                                                 )
-                    # Save current state before applying changes
-                    action_id = save_action_state(
-                        'delete_unwanted_rows',
-                        f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}",
-                        params={
-                            'pattern': search_pattern,
-                            'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
-                            'scope': 'first_cell'
+                    # Show text input if "other" is selected
+                    search_pattern = None
+                    custom_pattern = None
+                    if delete_row_input == "other":
+                        custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
+                                                    placeholder="e.g. Total|Subtotal or ^Page \\d+",
+                                                    help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
+                                                    
+                    if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
+                        if delete_row_input is None:
+                            st.error("Please select a row type to delete first")
+                            st.stop() # Early exit to halt remainder of script for this rerun
+                        if delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
+                            st.error("Please enter a custom pattern when 'other' is selected")
+                            st.stop()# Early exit to halt remainder of script for this rerun
+                        
+                        # Map choice to regex with a dictionary
+                        mapping = {
+                            "empty space": r"^\s*$",  # Match empty or whitespace-only cells
+                            "letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
+                            "numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
+                            "symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
                         }
-                    )
+                        search_pattern = mapping.get(delete_row_input, custom_pattern
+                                                    )
+                        # Save current state before applying changes
+                        action_id = save_action_state(
+                            'delete_unwanted_rows',
+                            f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}",
+                            params={
+                                'pattern': search_pattern,
+                                'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
+                                'scope': 'first_cell'
+                            }
+                        )
+                        
+                        cleaned_table = delete_unwanted_rows(search_pattern)
+                        if cleaned_table:
+                            # Use helper function to handle all formatting automatically
+                            update_display_table(cleaned_table)
+                            if 'debug_matches' in st.session_state:
+                                st.write("Rows that matched pattern:", st.session_state.debug_matches)
+                                del st.session_state.debug_matches
+                            st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                            st.rerun()
+            with tab3:
+
+                with st.expander("Alter columns"):
+                    st.write("Add a Net-per-Item Column")
+                    retail_price_input = st.number_input("Column number for retail price (1 = first column)",
+                                                    min_value=1,
+                                                    max_value=max((len(r) for r in st.session_state.working_data),
+                                                                        default=0),
+                                                    value=1,
+                                                    key="retail_price_col_selector"
+                                                    )
+                    discount_percent_input = st.number_input("Column number for discount percent (1 = first column)",
+                                                    min_value=1,
+                                                    max_value=max((len(r) for r in st.session_state.working_data),
+                                                                        default=0),
+                                                    value=1,
+                                                    key="discount_percent_col_selector"
+                                                    )
                     
-                    cleaned_table = delete_unwanted_rows(search_pattern)
-                    if cleaned_table:
-                        # Use helper function to handle all formatting automatically
-                        update_display_table(cleaned_table)
-                        if 'debug_matches' in st.session_state:
-                            st.write("Rows that matched pattern:", st.session_state.debug_matches)
-                            del st.session_state.debug_matches
-                        st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                    # Subtract 1 since users will be using 1 base instead of 0 base indexing
+                    retail_idx = retail_price_input - 1
+                    discount_idx = discount_percent_input - 1
+
+                    if st.button("Add Net-per-Item Column", type="primary"):
+                        
+                        action_id = save_action_state(
+                            'add_net_item_col',
+                            "Add Item Net Column",
+                            params={
+                                'retail_price_index' : int(retail_idx),
+                                'discount_percent_index' : int(discount_idx)
+                            }
+                        )
+
+                        net_item_values = []
+                        for row in st.session_state.working_data:
+                            if len(row) <= max(retail_idx, discount_idx):
+                                net_item_values.append("")
+                                continue
+                            price = to_float(row[retail_idx])
+                            disc_percent = to_float(row[discount_idx])
+                            net = price * (1 - disc_percent / 100)
+                            net_item_values.append(round(net, 2))
+
+                        # Insert after discount column
+                        for i, row in enumerate(st.session_state.working_data):
+                            row.insert(discount_idx + 1, net_item_values[i])
+                        
+                        if st.session_state.get("current_headers"):
+                            st.session_state.current_headers.insert(discount_idx + 1, "Item Net")
+                        
+                        update_display_table(st.session_state.working_data)
+                        st.success("Added Net-per-Item Column")
                         st.rerun()
 
-            with st.expander("Alter columns"):
-                st.write("Add a Net-per-Item Column")
-                retail_price_input = st.number_input("Column number for retail price (1 = first column)",
-                                                   min_value=1,
-                                                   max_value=max((len(r) for r in st.session_state.working_data),
-                                                                     default=0),
-                                                   value=1,
-                                                   key="retail_price_col_selector"
-                                                   )
-                discount_percent_input = st.number_input("Column number for discount percent (1 = first column)",
-                                                   min_value=1,
-                                                   max_value=max((len(r) for r in st.session_state.working_data),
-                                                                     default=0),
-                                                   value=1,
-                                                   key="discount_percent_col_selector"
-                                                   )
+            with tab4:
                 
-                # Subtract 1 since users will be using 1 base instead of 0 base indexing
-                retail_idx = retail_price_input - 1
-                discount_idx = discount_percent_input - 1
+                # Reset button to start over
+                if st.button("Reset to Original", key="reset_btn", type="primary"):
+                    if all_tables:
+                        combined_table = pd.concat(all_tables, ignore_index=True)
+                        st.session_state.main_table = combined_table
+                        st.session_state.table_as_list = combined_table.values.tolist()
+                        st.session_state.working_data = combined_table.values.tolist()
 
-                if st.button("Add Net-per-Item Column", type="primary"):
-                    
-                    action_id = save_action_state(
-                        'add_net_item_col',
-                        "Add Item Net Column",
-                        params={
-                            'retail_price_index' : int(retail_idx),
-                            'discount_percent_index' : int(discount_idx)
-                        }
-                    )
+                        # Clear ALL session state variables including applied_actions
+                        for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
+                            if key in st.session_state:
+                                del st.session_state[key]
 
-                    net_item_values = []
-                    for row in st.session_state.working_data:
-                        if len(row) <= max(retail_idx, discount_idx):
-                            net_item_values.append("")
-                            continue
-                        price = to_float(row[retail_idx])
-                        disc_percent = to_float(row[discount_idx])
-                        net = price * (1 - disc_percent / 100)
-                        net_item_values.append(round(net, 2))
-
-                    # Insert after discount column
-                    for i, row in enumerate(st.session_state.working_data):
-                        row.insert(discount_idx + 1, net_item_values[i])
-                    
-                    if st.session_state.get("current_headers"):
-                        st.session_state.current_headers.insert(discount_idx + 1, "Item Net")
-                    
-                    update_display_table(st.session_state.working_data)
-                    st.success("Added Net-per-Item Column")
-                    st.rerun()
-
-            # Reset button to start over
-            if st.button("Reset to Original", key="reset_btn", type="primary"):
-                if all_tables:
-                    combined_table = pd.concat(all_tables, ignore_index=True)
-                    st.session_state.main_table = combined_table
-                    st.session_state.table_as_list = combined_table.values.tolist()
-                    st.session_state.working_data = combined_table.values.tolist()
-
-                    # Clear ALL session state variables including applied_actions
-                    for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
-                        if key in st.session_state:
-                            del st.session_state[key]
-
-                    st.success("Table reset to original!")
-                    st.rerun()
+                        st.success("Table reset to original!")
+                        st.rerun()
 
         # Space between columns
         with col_break:
