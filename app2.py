@@ -9,7 +9,7 @@ import pandas as pd
 from table_functions import (save_action_state, choose_headers, undo_choose_headers_action, apply_data_start,
                              undo_data_start_action, fix_concatenated_table, undo_fix_concatenated_action,
                              update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
-                             delete_unwanted_rows, undo_delete_rows_action, to_float)
+                             delete_unwanted_rows, undo_delete_rows_action, to_float, undo_net_item_col_action)
 
 from template_functions import (save_template_to_disk, build_template_from_actions,
                                 list_templates, load_template_from_disk, replay_template)
@@ -340,6 +340,11 @@ if uploaded_file is not None:
                     elif action['type'] == 'delete_unwanted_rows':
                         if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
                             undo_delete_rows_action(action['id'])
+                            st.rerun()
+
+                    elif action['type'] == 'add_net_item_col':
+                        if st.button(f"↶ Undo Add Item Net", key=f"undo_net_item_col_{action['id']}", type="secondary"):
+                            undo_net_item_col_action(action['id'])
                             st.rerun()
 
             else:
