@@ -125,11 +125,11 @@ def replay_template(tpl, reset_first=True, log_steps=False):
             cleaned = delete_unwanted_rows(pattern)
             update_display_table(cleaned)
 
-        elif t == "add_net_item_col":
-            retail_idx = p.get("retail_price_index")
-            discount_idx = p.get("discount_percent_index")
-            added = 
-            update_display_table()
+        # elif t == "add_net_item_col":
+        #     retail_idx = p.get("retail_price_index")
+        #     discount_idx = p.get("discount_percent_index")
+        #     added = 
+        #     update_display_table()
 
         if log_steps:
             # optionally add entries to applied_actions

@@ -9,7 +9,8 @@ import pandas as pd
 from table_functions import (save_action_state, choose_headers, undo_choose_headers_action, apply_data_start,
                              undo_data_start_action, fix_concatenated_table, undo_fix_concatenated_action,
                              update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
-                             delete_unwanted_rows, undo_delete_rows_action, to_float, undo_net_item_col_action)
+                             delete_unwanted_rows, undo_delete_rows_action, to_float, add_net_item_col,
+                             undo_net_item_col_action)
 
 from template_functions import (save_template_to_disk, build_template_from_actions,
                                 list_templates, load_template_from_disk, replay_template)
@@ -268,31 +269,15 @@ if uploaded_file is not None:
                         
                         action_id = save_action_state(
                             'add_net_item_col',
-                            "Add Item Net Column",
+                            "Add Item Net Column (price={retail_input}, discount={discount_input})",
                             params={
                                 'retail_price_index' : int(retail_idx),
                                 'discount_percent_index' : int(discount_idx)
                             }
                         )
 
-                        net_item_values = []
-                        for row in st.session_state.working_data:
-                            if len(row) <= max(retail_idx, discount_idx):
-                                net_item_values.append("")
-                                continue
-                            price = to_float(row[retail_idx])
-                            disc_percent = to_float(row[discount_idx])
-                            net = price * (1 - disc_percent / 100)
-                            net_item_values.append(round(net, 2))
-
-                        # Insert after discount column
-                        for i, row in enumerate(st.session_state.working_data):
-                            row.insert(discount_idx + 1, net_item_values[i])
-                        
-                        if st.session_state.get("current_headers"):
-                            st.session_state.current_headers.insert(discount_idx + 1, "Item Net")
-                        
-                        update_display_table(st.session_state.working_data)
+                        added_net_table = add_net_item_col(retail_idx, discount_idx)       
+                        update_display_table(added_net_table)
                         st.success("Added Net-per-Item Column")
                         st.rerun()
 
