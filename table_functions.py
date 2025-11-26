@@ -18,9 +18,10 @@ def save_action_state(action_type, action_name, params=None):
         'name': action_name,
         'timestamp': datetime.now().strftime("%H:%M:%S"),
         'params': params or {}, # store parameters here
-        'working_data': st.session_state.working_data.copy(),
-        'current_headers': st.session_state.get('current_headers', None),
-        'main_table': st.session_state.main_table.copy() if 'main_table' in st.session_state else None
+        'working_data': [r[:] for r in st.session_state.working_data] if 'working_data' in st.session_state else None,
+        'current_headers': list(st.session_state.current_headers) if st.session_state.get('current_headers') else None,
+        'main_table': st.session_state.main_table.copy(deep=True) if 'main_table' in st.session_state else None,
+        
     }
     st.session_state.applied_actions.append(action_data)
     return action_id
@@ -118,23 +119,6 @@ def choose_headers(header_row_input):
 
     return clean_headers
 
-def undo_choose_headers_action(action_id):
-    """Undo choose headers action"""
-
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
-
 
 def remove_duplicate_headers(table_data, header_row_index):
     """
@@ -154,22 +138,6 @@ def remove_duplicate_headers(table_data, header_row_index):
 
     return cleaned_data
 
-def undo_remove_duplicates_action(action_id):
-    """Undo specific remove duplicates action"""
-
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
 def apply_data_start(data_start_input):
     """Set data start point and slice working data accordingly"""
@@ -181,26 +149,6 @@ def apply_data_start(data_start_input):
     sliced_data = current_data[data_start_input:]
 
     return sliced_data
-
-def undo_data_start_action(action_id):
-    """Undo specific data start action"""
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-
-    # Clear data start index
-    if 'data_start_index' in st.session_state:
-        del st.session_state.data_start_index
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
 
 def fix_concatenated_table(table):
@@ -237,22 +185,6 @@ def fix_concatenated_table(table):
                         
     return fixed_rows
 
-def undo_fix_concatenated_action(action_id):
-    """Undo specific fix concatenated action"""
-
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
 def delete_unwanted_rows(search_pattern):
     """Delete rows that don't contain actual data - pick by input"""
@@ -273,28 +205,13 @@ def delete_unwanted_rows(search_pattern):
 
     return kept_rows
 
-def undo_delete_rows_action(action_id):
-    """Undo specific fix concatenated action"""
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
 
 def add_net_item_col(retail_idx, discount_idx, header_name="Item Net"):
     """
     Insert a net column (price * (1 - discount%)) immediately after the discount column
     Indices are zero-based.  Returns the updated working_data (list of rows).
     """
-    max_width = max((len(r) for r in st.session_state.working_data), default=0)
+    # max_width = max((len(r) for r in st.session_state.working_data), default=0)
     net_item_values = []
     
     for row in st.session_state.working_data:
@@ -316,24 +233,8 @@ def add_net_item_col(retail_idx, discount_idx, header_name="Item Net"):
     if st.session_state.get("current_headers"):
         headers = st.session_state.current_headers
         if len(headers) < insert_position:
-            headers.extend([f"col_{len(headers)+j}" for j in range(insert_position - len(headers))])
+            headers.append([f"col_{len(headers)+j}" for j in range(insert_position - len(headers))])
         headers.insert(insert_position, header_name)
 
     return st.session_state.working_data
-
-def undo_net_item_col_action(action_id):
-    """Undo specific add item net column"""
-    action_index = next(i for i, action in enumerate(st.session_state.applied_actions) if action['id'] == action_id)
-    target_action = st.session_state.applied_actions[action_index]
-
-    # Restore state from before this action
-    st.session_state.working_data = target_action['working_data']
-    st.session_state.current_headers = target_action['current_headers']
-    if target_action['main_table'] is not None:
-        st.session_state.main_table = target_action['main_table']
-    
-    # Remove this action and all subsequent actions
-    st.session_state.applied_actions = st.session_state.applied_actions[:action_index]
-    
-    st.success(f"Undone: {target_action['name']} and all subsequent actions")
 

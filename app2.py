@@ -6,14 +6,17 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import (save_action_state, choose_headers, undo_choose_headers_action, apply_data_start,
-                             undo_data_start_action, fix_concatenated_table, undo_fix_concatenated_action,
-                             update_display_table, remove_duplicate_headers, undo_remove_duplicates_action,
-                             delete_unwanted_rows, undo_delete_rows_action, to_float, add_net_item_col,
-                             undo_net_item_col_action)
+from table_functions import (save_action_state, choose_headers, apply_data_start,
+                             fix_concatenated_table, update_display_table, remove_duplicate_headers,
+                             delete_unwanted_rows, add_net_item_col)
+
+from undo_table_functions import (undo_choose_headers_action, undo_data_start_action,
+                                  undo_delete_rows_action, undo_fix_concatenated_action,
+                                  undo_net_item_col_action, undo_remove_duplicates_action)
 
 from template_functions import (save_template_to_disk, build_template_from_actions,
-                                list_templates, load_template_from_disk, replay_template)
+                                list_templates, load_template_from_disk, replay_template,
+                                action_label)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -60,7 +63,7 @@ if uploaded_file is not None:
             # Convert dataframe to list of lists for processing
             st.session_state.table_as_list = combined_table.values.tolist()
             # Always preserve 
-            st.session_state.original_table_data = st.session_state.table_as_list.copy()
+            st.session_state.original_table_data = [r[:] for r in st.session_state.table_as_list]
             st.session_state.working_data = st.session_state.table_as_list.copy()
             st.session_state.current_headers = None
             st.success("Main table initialized!")
@@ -82,7 +85,7 @@ if uploaded_file is not None:
             st.session_state.applied_actions = []
 
         # Create columns for table and actions panel
-        col_choices, col_break, col_actions = st.columns([3, 1, 3])
+        col_choices, col_break, col_actions = st.columns([4, 1, 2])
 
         # Column on the left to display formatting choices    
         with col_choices:
@@ -109,11 +112,10 @@ if uploaded_file is not None:
                             # Wrap in a form to keep expander open when changing inputs
                             if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
                                 # Save current state before applying changes
-                                action_id = save_action_state(
-                                    'apply_headers',
-                                    f"Headers from row {header_row_input}",
-                                    params={'header_row_index': int(header_row_input)}
-                                )
+                                params={'header_row_index': int(header_row_input)}
+                                name = action_label('apply_headers', params)
+                                save_action_state('apply_headers', name, params=params)
+                                
                                 choose_headers(header_row_input)
 
                                 # Update main table
@@ -127,11 +129,9 @@ if uploaded_file is not None:
                         st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
                         if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                             # Save current state before applying changes
-                            action_id = save_action_state(
-                                'remove_duplicates',
-                                f"Remove Duplicate Header Rows",
-                                params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
-                            )
+                            params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
+                            name = action_label('remove_duplicates', params)
+                            save_action_state('remove_duplicates', name, params=params)
 
                             # Work from current working data
                             source_data = st.session_state.working_data
@@ -155,19 +155,18 @@ if uploaded_file is not None:
                                                     max_value=len(st.session_state.working_data) - 1,
                                                     value=st.session_state.get('header_row_index', 0) + 1,
                                                     key="data_start_selector")
+                        
                         if st.button("Apply Data Start", key="data_start_btn", type="primary"):
-                            action_id = save_action_state(
-                                'apply_data_start',
-                                f"Data starts at row {data_start_input}",
                                 params={'data_start_index': int(data_start_input)}
-                            )
+                                name = action_label('apply_data_start', params)
+                                save_action_state('apply_data_start', name, params=params)
 
-                            sliced_data = apply_data_start(data_start_input)
+                                sliced_data = apply_data_start(data_start_input)
 
-                            # Update main table
-                            update_display_table(sliced_data)
-                            st.success(f"Data now starts at former row {data_start_input}!")
-                            st.rerun()
+                                # Update main table
+                                update_display_table(sliced_data)
+                                st.success(f"Data now starts at former row {data_start_input}!")
+                                st.rerun()
 
             with tab2:
 
@@ -175,20 +174,18 @@ if uploaded_file is not None:
                 with st.expander("Fix Rows"):
                     if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
                         # Save current state before applying changes
-                        action_id = save_action_state(
-                            'fix_concatenated',
-                            "Fix Concatenated Rows",
                             params={}
-                        )
+                            name = action_label('fix_concatenated', params)
+                            save_action_state('fix_concatenated', name, params=params)
 
-                        # Always work from working data
-                        source_data = st.session_state.working_data
-                        fixed_table = fix_concatenated_table(source_data)
-                        if fixed_table:
-                            # Use helper function to handle all formatting automatically
-                            update_display_table(fixed_table)
-                            st.success("Table rows have been separated!")
-                            st.rerun()
+                            # Always work from working data
+                            source_data = st.session_state.working_data
+                            fixed_table = fix_concatenated_table(source_data)
+                            if fixed_table:
+                                # Use helper function to handle all formatting automatically
+                                update_display_table(fixed_table)
+                                st.success("Table rows have been separated!")
+                                st.rerun()
 
                 # Delete unwanted rows without real data
                 with st.expander("Alter Rows"):
@@ -223,15 +220,13 @@ if uploaded_file is not None:
                         search_pattern = mapping.get(delete_row_input, custom_pattern
                                                     )
                         # Save current state before applying changes
-                        action_id = save_action_state(
-                            'delete_unwanted_rows',
-                            f"Delete Rows: {delete_row_input if delete_row_input != 'other' else custom_pattern}",
-                            params={
-                                'pattern': search_pattern,
-                                'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
-                                'scope': 'first_cell'
-                            }
-                        )
+                        params={                                
+                            'pattern': search_pattern,
+                            'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
+                            'scope': 'first_cell'
+                        }
+                        name = action_label('delete_unwanted_rows', params)
+                        save_action_state('delete_unwanted_rows', name, params=params)
                         
                         cleaned_table = delete_unwanted_rows(search_pattern)
                         if cleaned_table:
@@ -266,15 +261,12 @@ if uploaded_file is not None:
                     discount_idx = discount_percent_input - 1
 
                     if st.button("Add Net-per-Item Column", type="primary"):
-                        
-                        action_id = save_action_state(
-                            'add_net_item_col',
-                            "Add Item Net Column (price={retail_input}, discount={discount_input})",
-                            params={
-                                'retail_price_index' : int(retail_idx),
-                                'discount_percent_index' : int(discount_idx)
-                            }
-                        )
+                        params={
+                            'retail_price_index' : int(retail_idx),
+                            'discount_percent_index' : int(discount_idx)
+                        }
+                        name = action_label('add_net_item_col', params)
+                        save_action_state('add_net_item_col', name, params=params)
 
                         added_net_table = add_net_item_col(retail_idx, discount_idx)       
                         update_display_table(added_net_table)
@@ -354,7 +346,9 @@ if uploaded_file is not None:
                 st.session_state.template_name = template_name
                 if st.button("Click to save template"):
                     tpl = build_template_from_actions(st.session_state.applied_actions)
-                    # If tpl ["warnings"]: show st.warning for each
+                    for w in tpl.get("warnings", []):
+                        st.warning(w)
+
                     path = save_template_to_disk(tpl)
                     st.success(f"Template: {template_name} saved!")
 
@@ -381,10 +375,10 @@ if uploaded_file is not None:
                         for w in tpl.get("warnings", []):
                             st.warning(w)
 
-                    # Replay
-                    replay_template(tpl, reset_first=reset_before, log_steps=True)
-                    st.success(f"Template replayed: {tpl.get('name', selected)}")
-                    st.rerun()
+                        # Replay
+                        replay_template(tpl, reset_first=reset_before, log_steps=True)
+                        st.success(f"Template replayed: {tpl.get('name', selected)}")
+                        st.rerun()
 
 
     # Fallback: show text for manual copy/paste

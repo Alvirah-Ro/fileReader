@@ -8,15 +8,35 @@ import json, os, re
 from datetime import datetime, UTC
 
 from table_functions import (choose_headers, apply_data_start,
-                             fix_concatenated_table,
-                             update_display_table, remove_duplicate_headers,
-                             delete_unwanted_rows, to_float)
+                             fix_concatenated_table, update_display_table,
+                             remove_duplicate_headers, delete_unwanted_rows,
+                             add_net_item_col, save_action_state)
 
 
 # Relative folder where all templates live 
 # shared by anyone using same app instance
 TEMPLATES_DIR = "templates" 
 
+def action_label(action_type, params):
+    if action_type == "apply_headers":
+        return f"Headers from row {params.get('header_row_index')}"
+    if action_type == "apply_data_start":
+        return f"Data starts at row {params.get('data_start_index')}"
+    if action_type == "remove_duplicates":
+        return "Remove Duplicate Header Rows"
+    if action_type == "fix_concatenated":
+        return "Fix Concatenated Rows"
+    if action_type == "delete_unwanted_rows":
+        choice = params.get("choice")
+        pat = params.get("pattern")
+        label = choice if choice and choice != "other" else pat
+        return f"Delete Rows: {label}"
+    if action_type == "add_net_item_col":
+        rp = params.get("retail_price_index")
+        dp = params.get("discount_percent_index")
+        # show 1-based to user
+        return f"Add Item Net Column (price col {1+rp if rp is not None else '?'}, discount col {1+dp if dp is not None else '?'})"
+    return action_type
 
 def ensure_templates_dir():
     """Create a templates directory if it doesn't already exist"""
@@ -87,32 +107,46 @@ def build_template_from_actions(applied_actions):
         "warnings": warnings
     }
 
-def replay_template(tpl, reset_first=True, log_steps=False):
+def replay_template(tpl, reset_first=True, log_steps=True):
     """Accesses template and replays all steps to recreate the set table format"""
     if reset_first:
         # restore original
-        st.session_state.working_data = st.session_state.original_table_data.copy()
+        st.session_state.working_data = [r[:] for r in st.session_state.original_table_data]
         st.session_state.current_headers = None
         st.session_state.header_row_index = None
         st.session_state.data_start_index = None
         update_display_table(st.session_state.working_data)
 
-    for step in tpl["actions"]:
+    warnings = []
+    for step in tpl.get("actions", []):
         t = step["type"]
-        p = step.get("params", {})
+        p = step.get("params", {}) or {}
+
+        # Log to Applied Actions before applying, so undo can restorepre-step state
+        if log_steps:
+            save_action_state(t, action_label(t, p), params=p)
 
         if t == "apply_headers":
             idx = p.get("header_row_index")
+            if idx is None:
+                warnings.append("Skipped apply_headers: missing index")
+                continue
             choose_headers(idx)
             update_display_table(st.session_state.working_data)
         
         elif t == "apply_data_start":
             idx = p.get("data_start_index")
+            if idx is None:
+                warnings.append("Skipped apply_data_start: missing index")
+                continue
             apply_data_start(idx) # sets index only
             update_display_table(st.session_state.working_data)
 
         elif t == "remove_duplicates":
             hdr_idx = p.get("header_row_index", st.session_state.get("header_row_index"))
+            if hdr_idx is None:
+                warnings.append("Skipped remove_duplicates: missing index")
+                continue
             cleaned = remove_duplicate_headers(st.session_state.working_data, hdr_idx)
             update_display_table(cleaned)
 
@@ -122,15 +156,17 @@ def replay_template(tpl, reset_first=True, log_steps=False):
 
         elif t == "delete_unwanted_rows":
             pattern = p.get("pattern", "")
+            if not pattern:
+                warnings.append("Skipped delete_unwanted_rows: missing pattern")
+                continue
             cleaned = delete_unwanted_rows(pattern)
             update_display_table(cleaned)
 
-        # elif t == "add_net_item_col":
-        #     retail_idx = p.get("retail_price_index")
-        #     discount_idx = p.get("discount_percent_index")
-        #     added = 
-        #     update_display_table()
-
-        if log_steps:
-            # optionally add entries to applied_actions
-            pass
+        elif t == "add_net_item_col":
+            retail_idx = p.get("retail_price_index")
+            discount_idx = p.get("discount_percent_index")
+            if retail_idx is None or discount_idx is None:
+                warnings.append("Skipped add_net_item_col: missing indices")
+                continue
+            added = add_net_item_col(retail_idx, discount_idx)
+            update_display_table(added)
