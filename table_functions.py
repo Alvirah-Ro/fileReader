@@ -21,7 +21,7 @@ def save_action_state(action_type, action_name, params=None):
         'working_data': [r[:] for r in st.session_state.working_data] if 'working_data' in st.session_state else None,
         'current_headers': list(st.session_state.current_headers) if st.session_state.get('current_headers') else None,
         'main_table': st.session_state.main_table.copy(deep=True) if 'main_table' in st.session_state else None,
-        
+
     }
     st.session_state.applied_actions.append(action_data)
     return action_id
@@ -211,9 +211,16 @@ def add_net_item_col(retail_idx, discount_idx, header_name="Item Net"):
     Insert a net column (price * (1 - discount%)) immediately after the discount column
     Indices are zero-based.  Returns the updated working_data (list of rows).
     """
+
+    if not st.session_state.working_data:
+        return st.session_state.working_data # Nothing to do if empty
     # max_width = max((len(r) for r in st.session_state.working_data), default=0)
-    net_item_values = []
     
+    # Validate indices
+    if any(v is None for v in (retail_idx, discount_idx)) or retail_idx < 0 or discount_idx < 0:
+        return st.session_state.working_data
+    
+    net_item_values = []
     for row in st.session_state.working_data:
         if len(row) <= max(retail_idx, discount_idx):
             net_item_values.append("")
@@ -232,9 +239,17 @@ def add_net_item_col(retail_idx, discount_idx, header_name="Item Net"):
                         
     if st.session_state.get("current_headers"):
         headers = st.session_state.current_headers
-        if len(headers) < insert_position:
-            headers.append([f"col_{len(headers)+j}" for j in range(insert_position - len(headers))])
+        # Pad headers up to insert_position
+        while len(headers) < insert_position:
+            headers.append(f"col_{len(headers)}")
+        # Insert new header
         headers.insert(insert_position, header_name)
+        # Reconcile header count with widest row
+        new_width = max((len(r) for r in st.session_state.working_data), default=0)
+        while len(headers) < new_width:
+            headers.append(f"col_{len(headers)}")
+        if len(headers) > new_width:
+            headers[:] = headers[:new_width]
 
     return st.session_state.working_data
 
