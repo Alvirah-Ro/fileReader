@@ -64,7 +64,7 @@ if uploaded_file is not None:
             st.session_state.table_as_list = combined_table.values.tolist()
             # Always preserve 
             st.session_state.original_table_data = [r[:] for r in st.session_state.table_as_list]
-            st.session_state.working_data = st.session_state.table_as_list.copy()
+            st.session_state.working_data = [r[:] for r in st.session_state.table_as_list]
             st.session_state.current_headers = None
             st.success("Main table initialized!")
 
@@ -116,6 +116,9 @@ if uploaded_file is not None:
                                 save_action_state('apply_headers', name, params=params)
                                 
                                 choose_headers(header_row_input)
+                                st.session_state.header_row_index = int(header_row_input)
+                                # Automatically start data after header row
+                                st.session_state.data_start_index = st.session_state.header_row_index + 1
 
                                 # Update main table
                                 update_display_table(st.session_state.working_data)
@@ -125,7 +128,7 @@ if uploaded_file is not None:
                             # Remove duplicate header rows
                 with st.expander("Remove Duplicate Headers"):
                     if 'header_row_index' in st.session_state and st.session_state.header_row_index is not None:
-                        st.write(f"Will remove rows that match header row {st.session_state.header_row_index}")
+                        st.write("Will remove rows that match header row")
                         if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                             # Save current state before applying changes
                             params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
@@ -160,17 +163,17 @@ if uploaded_file is not None:
                                 name = action_label('apply_data_start', params)
                                 save_action_state('apply_data_start', name, params=params)
 
-                                sliced_data = apply_data_start(data_start_input)
+                                apply_data_start(data_start_input) # Set the index only
 
                                 # Update main table
-                                update_display_table(sliced_data)
+                                update_display_table(st.session_state.working_data)
                                 st.success(f"Data now starts at former row {data_start_input}!")
                                 st.rerun()
 
             with tab2:
 
                 # Fix concatenated data
-                with st.expander("Fix Rows"):
+                with st.expander("Separate Rows"):
                     if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
                         # Save current state before applying changes
                             params={}
