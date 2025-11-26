@@ -1,5 +1,5 @@
 """ 
-Automated PDF table extractor: Version K
+Automated PDF table extractor: Version A
 """
 
 import streamlit as st
@@ -75,8 +75,7 @@ if uploaded_file is not None:
 
         # Display current main table
         if 'main_table' in st.session_state:
-            st.write(f"### All Tables Combined:")
-            st.write(f"#### Current Main Table:")
+            st.write(f"#### Current Main Table (all tables combined):")
             st.write("Click on options below to format table")
             st.dataframe(st.session_state.main_table, width="stretch")
 
@@ -94,7 +93,7 @@ if uploaded_file is not None:
 
 
 
-            tab1, tab2, tab3, tab4 = st.tabs(["Headers", "Rows", "Columns", "Reset"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Headers", "Rows", "Columns", "Templates"])
 
             with tab1:
                 # Choose row that contains headers
@@ -275,21 +274,46 @@ if uploaded_file is not None:
 
             with tab4:
                 
-                # Reset button to start over
-                if st.button("Reset to Original", key="reset_btn", type="primary"):
-                    if all_tables:
-                        combined_table = pd.concat(all_tables, ignore_index=True)
-                        st.session_state.main_table = combined_table
-                        st.session_state.table_as_list = combined_table.values.tolist()
-                        st.session_state.working_data = combined_table.values.tolist()
+                # Button to save template to disk
+                if st.session_state.applied_actions:
+                    st.write("#### Save Template")
+                    template_name = st.text_input("Please enter name of template")
+                    if template_name:
+                        st.session_state.template_name = template_name
+                        if st.button("Click to save template"):
+                            tpl = build_template_from_actions(st.session_state.applied_actions)
+                            for w in tpl.get("warnings", []):
+                                st.warning(w)
 
-                        # Clear ALL session state variables including applied_actions
-                        for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
-                            if key in st.session_state:
-                                del st.session_state[key]
+                            path = save_template_to_disk(tpl)
+                            st.success(f"Template: {template_name} saved!")
 
-                        st.success("Table reset to original!")
-                        st.rerun()
+
+                st.write("#### Load Template")
+                template_list = list_templates() # Returns list of filenames
+
+                if not template_list:
+                    st.info("No templates saved yet.")
+                else:
+                    selected = st.selectbox(
+                        "Choose a template to apply",
+                        template_list,
+                        index=None,
+                        placeholder="Select template"
+                    )
+                    reset_before = st.checkbox("Reset to original before applying", value=True)
+
+                    if selected and st.button(f"Apply Selected Template", type="primary"):
+                            tpl = load_template_from_disk(selected)
+                            if not tpl:
+                                st.error(f"Could not load template: {selected}")
+                            else:
+                                # Show any stored warnings prior to replay
+                                warnings = replay_template(tpl, reset_first=reset_before, log_steps=True)
+                                for w in warnings:
+                                    st.warning(w)
+                                st.success(f"Template replayed: {tpl.get('name', selected)}")
+                                st.rerun()
 
         # Space between columns
         with col_break:
@@ -338,46 +362,21 @@ if uploaded_file is not None:
             else:
                 st.info("No actions applied yet")
 
-        # Button to save template to disk
-        if st.session_state.applied_actions:
-            st.write("#### Save Template")
-            template_name = st.text_input("Please enter name of template")
-            if template_name:
-                st.session_state.template_name = template_name
-                if st.button("Click to save template"):
-                    tpl = build_template_from_actions(st.session_state.applied_actions)
-                    for w in tpl.get("warnings", []):
-                        st.warning(w)
+        # Reset button to start over
+        if st.button("Reset to Original", key="reset_btn", type="primary"):
+            if all_tables:
+                combined_table = pd.concat(all_tables, ignore_index=True)
+                st.session_state.main_table = combined_table
+                st.session_state.table_as_list = combined_table.values.tolist()
+                st.session_state.working_data = combined_table.values.tolist()
 
-                    path = save_template_to_disk(tpl)
-                    st.success(f"Template: {template_name} saved!")
+                # Clear ALL session state variables including applied_actions
+                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
+                    if key in st.session_state:
+                        del st.session_state[key]
 
-
-        st.write("#### Load Template")
-        template_list = list_templates() # Returns list of filenames
-
-        if not template_list:
-            st.info("No templates saved yet.")
-        else:
-            selected = st.selectbox(
-                "Choose a template to apply",
-                template_list,
-                index=None,
-                placeholder="Select template"
-            )
-            reset_before = st.checkbox("Reset to original before applying", value=True)
-
-            if selected and st.button(f"Apply Selected Template", type="primary"):
-                    tpl = load_template_from_disk(selected)
-                    if not tpl:
-                        st.error(f"Could not load template: {selected}")
-                    else:
-                        # Show any stored warnings prior to replay
-                        warnings = replay_template(tpl, reset_first=reset_before, log_steps=True)
-                        for w in warnings:
-                            st.warning(w)
-                        st.success(f"Template replayed: {tpl.get('name', selected)}")
-                        st.rerun()
+                st.success("Table reset to original!")
+                st.rerun()
 
 
     # Fallback: show text for manual copy/paste
