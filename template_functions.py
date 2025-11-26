@@ -109,6 +109,7 @@ def build_template_from_actions(applied_actions):
 
 def replay_template(tpl, reset_first=True, log_steps=True):
     """Accesses template and replays all steps to recreate the set table format"""
+    warnings = []
     if reset_first:
         # restore original
         st.session_state.working_data = [r[:] for r in st.session_state.original_table_data]
@@ -117,7 +118,6 @@ def replay_template(tpl, reset_first=True, log_steps=True):
         st.session_state.data_start_index = None
         update_display_table(st.session_state.working_data)
 
-    warnings = []
     for step in tpl.get("actions", []):
         t = step["type"]
         p = step.get("params", {}) or {}
@@ -170,3 +170,5 @@ def replay_template(tpl, reset_first=True, log_steps=True):
                 continue
             added = add_net_item_col(retail_idx, discount_idx)
             update_display_table(added)
+    
+    return warnings

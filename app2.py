@@ -352,6 +352,7 @@ if uploaded_file is not None:
                     path = save_template_to_disk(tpl)
                     st.success(f"Template: {template_name} saved!")
 
+
         st.write("#### Load Template")
         template_list = list_templates() # Returns list of filenames
 
@@ -372,11 +373,9 @@ if uploaded_file is not None:
                         st.error(f"Could not load template: {selected}")
                     else:
                         # Show any stored warnings prior to replay
-                        for w in tpl.get("warnings", []):
+                        warnings = replay_template(tpl, reset_first=reset_before, log_steps=True)
+                        for w in warnings:
                             st.warning(w)
-
-                        # Replay
-                        replay_template(tpl, reset_first=reset_before, log_steps=True)
                         st.success(f"Template replayed: {tpl.get('name', selected)}")
                         st.rerun()
 
