@@ -148,27 +148,27 @@ if uploaded_file is not None:
 
 
 
-                # Choose row where actual data starts
-                with st.expander("Choose Data Start"):
-                    if 'current_headers' in st.session_state and st.session_state.current_headers:
-                        # Row input for data start
-                        data_start_input = st.number_input("Select the first row that contains actual data",
-                                                    min_value=st.session_state.get('header_row_index', 0) + 1,
-                                                    max_value=len(st.session_state.working_data) - 1,
-                                                    value=st.session_state.get('header_row_index', 0) + 1,
-                                                    key="data_start_selector")
+                # # Choose row where actual data starts
+                # with st.expander("Choose Data Start"):
+                #     if 'current_headers' in st.session_state and st.session_state.current_headers:
+                #         # Row input for data start
+                #         data_start_input = st.number_input("Select the first row that contains actual data",
+                #                                     min_value=st.session_state.get('header_row_index', 0) + 1,
+                #                                     max_value=len(st.session_state.working_data) - 1,
+                #                                     value=st.session_state.get('header_row_index', 0) + 1,
+                #                                     key="data_start_selector")
                         
-                        if st.button("Apply Data Start", key="data_start_btn", type="primary"):
-                                params={'data_start_index': int(data_start_input)}
-                                name = action_label('apply_data_start', params)
-                                save_action_state('apply_data_start', name, params=params)
+                #         if st.button("Apply Data Start", key="data_start_btn", type="primary"):
+                #                 params={'data_start_index': int(data_start_input)}
+                #                 name = action_label('apply_data_start', params)
+                #                 save_action_state('apply_data_start', name, params=params)
 
-                                apply_data_start(data_start_input) # Set the index only
+                #                 apply_data_start(data_start_input) # Set the index only
 
-                                # Update main table
-                                update_display_table(st.session_state.working_data)
-                                st.success(f"Data now starts at former row {data_start_input}!")
-                                st.rerun()
+                #                 # Update main table
+                #                 update_display_table(st.session_state.working_data)
+                #                 st.success(f"Data now starts at former row {data_start_input}!")
+                #                 st.rerun()
 
             with tab2:
 
@@ -190,10 +190,10 @@ if uploaded_file is not None:
                                 st.rerun()
 
                 # Delete unwanted rows without real data
-                with st.expander("Alter Rows"):
+                with st.expander("Delete Rows"):
                     # Input for choosing rows to delete
-                    delete_row_input = st.radio("Select which rows to remove - Column 1 should not include these values:",
-                                ["empty space", "letters", "numbers", "symbols", "other"],
+                    delete_row_input = st.radio("Select which rows to delete - First cells (Column 1) should not include these values:",
+                                ["Empty", "Letters", "Numbers", "Symbols", "Other"],
                                 index=None,)
                     
                     # Show text input if "other" is selected
@@ -201,7 +201,7 @@ if uploaded_file is not None:
                     custom_pattern = None
                     if delete_row_input == "other":
                         custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
-                                                    placeholder="e.g. Total|Subtotal or ^Page \\d+",
+                                                    placeholder="e.g. Total|Subtotal or ^\\d{6}$' or ^Page \\d+",
                                                     help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
                                                     
                     if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
@@ -214,10 +214,10 @@ if uploaded_file is not None:
                         
                         # Map choice to regex with a dictionary
                         mapping = {
-                            "empty space": r"^\s*$",  # Match empty or whitespace-only cells
-                            "letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
-                            "numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
-                            "symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
+                            "Empty": r"^\s*$",  # Match empty or whitespace-only cells
+                            "Letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
+                            "Numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
+                            "Symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
                         }
                         search_pattern = mapping.get(delete_row_input, custom_pattern
                                                     )
