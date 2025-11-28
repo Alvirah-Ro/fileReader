@@ -196,10 +196,10 @@ if uploaded_file is not None:
                                 ["Empty", "Letters", "Numbers", "Symbols", "Other"],
                                 index=None,)
                     
-                    # Show text input if "other" is selected
+                    # Show text input if "Other" is selected
                     search_pattern = None
                     custom_pattern = None
-                    if delete_row_input == "other":
+                    if delete_row_input == "Other":
                         custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
                                                     placeholder="e.g. Total|Subtotal or ^\\d{6}$' or ^Page \\d+",
                                                     help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
@@ -208,8 +208,8 @@ if uploaded_file is not None:
                         if delete_row_input is None:
                             st.error("Please select a row type to delete first")
                             st.stop() # Early exit to halt remainder of script for this rerun
-                        if delete_row_input == "other" and (not custom_pattern or custom_pattern.strip() == ""):
-                            st.error("Please enter a custom pattern when 'other' is selected")
+                        if delete_row_input == "Other" and (not custom_pattern or custom_pattern.strip() == ""):
+                            st.error("Please enter a custom pattern when 'Other' is selected")
                             st.stop()# Early exit to halt remainder of script for this rerun
                         
                         # Map choice to regex with a dictionary
