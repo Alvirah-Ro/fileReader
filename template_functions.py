@@ -17,26 +17,76 @@ from table_functions import (choose_headers, apply_data_start,
 # shared by anyone using same app instance
 TEMPLATES_DIR = "templates" 
 
+# Single registry describing each action
+# - required: params that must be present (if missing: back-fill from session_state)
+# - label: a format string using keys from params (add +1 for 1-based indices)
+# - func: the callable to execute
+# - args: list of argument specs; taken from params or working_data
+# - returns_data: True if func returns new list-of-rows to render, otherwise just post_update
+# -post_update: call update_display_table even if function returns None (for stateful funcs)
+ACTIONS = {
+    "apply_headers": {
+        "required": ["header_row_index"],
+        "label": "Headers from row {header_row_index}",
+        "func": choose_headers,
+        "args": ["header_row_index"],
+        "returns_data": False,
+        "post_update": True,
+    },
+    "remove_duplicates": {
+        "required": ["header_row_index"],
+        "label": "Remove Duplicate Header Rows",
+        "func": remove_duplicate_headers,
+        "args": ["working_data", "header_row_index"],
+        "returns_data": True,
+        "post_update": False,
+    },
+    "fix_concatenated": {
+        "required": [],
+        "label": "Fix Concatenated Rows",
+        "func": fix_concatenated_table,
+        "args": ["working_data"],
+        "returns_data": True,
+        "post_update": False,
+    },
+    "delete_unwanted_rows": {
+        "required": ["pattern"],
+        "label": "Delete Rows: {pattern}",
+        "func": delete_unwanted_rows,
+        "args": ["pattern"],
+        "returns_data": True,
+        "post_update": False,
+    },
+    "add_net_item_col": {
+        "required": ["retail_price_index", "discount_percent_index"],
+        "label": lambda p: (
+            f"Add Item Net Column (price col {1 + p['retail_price_index'] if p.get('retail_price_index') is not None else '?'}, "
+            f"discount col {1 + p['discount_percent_index'] if p.get('discount_percent_index') is not None else '?'})"
+        ),
+        "func": add_net_item_col,
+        "args": ["retail_price_index", "discount_percent_index"],
+        "returns_data": True,
+        "post_update": False,
+    },
+}
+
 def action_label(action_type, params):
-    if action_type == "apply_headers":
-        return f"Headers from row {params.get('header_row_index')}"
-    if action_type == "apply_data_start":
-        return f"Data starts at row {params.get('data_start_index')}"
-    if action_type == "remove_duplicates":
-        return "Remove Duplicate Header Rows"
-    if action_type == "fix_concatenated":
-        return "Fix Concatenated Rows"
-    if action_type == "delete_unwanted_rows":
-        choice = params.get("choice")
-        pat = params.get("pattern")
-        label = choice if choice and choice != "other" else pat
-        return f"Delete Rows: {label}"
-    if action_type == "add_net_item_col":
-        rp = params.get("retail_price_index")
-        dp = params.get("discount_percent_index")
-        # show 1-based to user
-        return f"Add Item Net Column (price col {1+rp if rp is not None else '?'}, discount col {1+dp if dp is not None else '?'})"
-    return action_type
+    """
+    Builds a human-readable label for an action using ACTIONS registry
+    Supports labels defined as format strings or callables.
+    """
+    cfg = ACTIONS.get(action_type) # cfg is short for configuration: a small dict describing how to handle actions
+    if not cfg:
+        return action_type
+    label = cfg.get("label")
+    try:
+        if callable(label):
+            return label(params or {})
+        # label is a format string; format with params
+        return str(label).format(**(params or {}))
+    except Exception:
+        # Fallback if formatting errors occur
+        return action_type
 
 def ensure_templates_dir():
     """Create a templates directory if it doesn't already exist"""
@@ -70,41 +120,32 @@ def build_template_from_actions(applied_actions):
     """Build a template from current state"""
     warnings = []
     tpl_actions = []
+    ss = st.session_state
+
     for a in applied_actions:
         t= a["type"]
-        p = a.get('params', {}) or {}
-        
-        # Use stored params first, then try current session state data if no stored params
-        if t == "apply_headers":
-            if "header_row_index" not in p:
-                p = {"header_row_index": st.session_state.get("header_row_index")}
-        elif t == "apply_data_start":
-            if "data_start_index" not in p:
-                p = {"data_start_index": st.session_state.get("data_start_index")}
-        elif t == "remove_duplicates":
-            if "header_row_index" not in p:
-                p = {"header_row_index": st.session_state.get("header_row_index")}
-        elif t == "fix_concatenated":
-            p = {} # always empty
-        elif t == "delete_unwanted_rows":
-            if "pattern" not in p:
-                warnings.append("Missing pattern for delete_unwanted_rows; step may be ineffective.")
-                p = {} # Keep but note incomplete
-        elif t == "add_net_item_col":
-            if "retail_price_index" not in p or "discount_percent_index" not in p:
-                p = {
-                    "retail_price_index": st.session_state.get('retail_price_index'),
-                     'discount_percent_index': st.session_state.get('discount_percent_index')
-                }
+        p = dict(a.get("params", {}) or {})
+        cfg = ACTIONS.get(t)
+        if not cfg:
+            warnings.append(f"Unknown action type in build: {t}")
+            tpl_actions.append({"type": t, "params": p})
+            continue
 
+        # Backfill required params from session_state if missing
+        for req in cfg["required"]:
+            if p.get(req) is None: # missing in saved params
+                p[req] = ss.get(req) # try session fallback
+            if p.get(req) # still missing after fallback
+                warnings.append(f"Missing {req} for {t}")
+        
         tpl_actions.append({"type": t, "params": p})
 
     return {
-        "name": st.session_state.get("template_name", "Untitled"),
+        "name": ss.get("template_name", "Untitled"),
         "version": "K",
         "created_at": datetime.now(UTC).isoformat(),
         "actions": tpl_actions,
-        "warnings": warnings
+        "warnings": warnings,
     }
 
 def replay_template(tpl, reset_first=True, log_steps=True):
