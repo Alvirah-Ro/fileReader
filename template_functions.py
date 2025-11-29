@@ -135,7 +135,7 @@ def build_template_from_actions(applied_actions):
         for req in cfg["required"]:
             if p.get(req) is None: # missing in saved params
                 p[req] = ss.get(req) # try session fallback
-            if p.get(req) # still missing after fallback
+            if p.get(req): # still missing after fallback
                 warnings.append(f"Missing {req} for {t}")
         
         tpl_actions.append({"type": t, "params": p})
