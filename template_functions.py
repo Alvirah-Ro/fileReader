@@ -148,6 +148,21 @@ def build_template_from_actions(applied_actions):
         "warnings": warnings,
     }
 
+def _invoke(cfg, params):
+    """Small dispatcher to execute action's function based on entry in ACTIONS"""
+    func = cfg["func"]
+    args = []
+    for spec in cfg["args"]:
+        if spec == "working_data":
+            args.append(st.session_state.working_data)
+        else:
+            args.append(params.get(spec))
+    try:
+        result = func(*args)
+        return result, []
+    except Exception as e:
+        return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
+
 def replay_template(tpl, reset_first=True, log_steps=True):
     """Accesses template and replays all steps to recreate the set table format"""
     warnings = []
@@ -162,54 +177,30 @@ def replay_template(tpl, reset_first=True, log_steps=True):
     for step in tpl.get("actions", []):
         t = step["type"]
         p = step.get("params", {}) or {}
+        cfg = ACTIONS.get(t)
+        if not cfg:
+            warnings.append(f"Unknown action during replay: {t}")
+            continue
 
-        # Log to Applied Actions before applying, so undo can restorepre-step state
+        # Log to Applied Actions so Undo works per-step
         if log_steps:
             save_action_state(t, action_label(t, p), params=p)
 
-        if t == "apply_headers":
-            idx = p.get("header_row_index")
-            if idx is None:
-                warnings.append("Skipped apply_headers: missing index")
-                continue
-            choose_headers(idx)
+        # Validate required params
+        missing = [req for req in cfg["required"] if p.get(req) is None]
+        if missing:
+            warnings.append(f"Skipped {t}: missing {', '.join(missing)}")
+            continue
+
+        result, call_warnings = _invoke(cfg, p)
+        warnings.extend(call_warnings)
+
+        if cfg["returns_data"]:
+            if result is None:
+                warnings.append(f"{t} returned no data")
+            else:
+                update_display_table(result)
+        elif cfg.get("post_update"):
             update_display_table(st.session_state.working_data)
-        
-        elif t == "apply_data_start":
-            idx = p.get("data_start_index")
-            if idx is None:
-                warnings.append("Skipped apply_data_start: missing index")
-                continue
-            apply_data_start(idx) # sets index only
-            update_display_table(st.session_state.working_data)
-
-        elif t == "remove_duplicates":
-            hdr_idx = p.get("header_row_index", st.session_state.get("header_row_index"))
-            if hdr_idx is None:
-                warnings.append("Skipped remove_duplicates: missing index")
-                continue
-            cleaned = remove_duplicate_headers(st.session_state.working_data, hdr_idx)
-            update_display_table(cleaned)
-
-        elif t == "fix_concatenated":
-            fixed = fix_concatenated_table(st.session_state.working_data)
-            update_display_table(fixed)
-
-        elif t == "delete_unwanted_rows":
-            pattern = p.get("pattern", "")
-            if not pattern:
-                warnings.append("Skipped delete_unwanted_rows: missing pattern")
-                continue
-            cleaned = delete_unwanted_rows(pattern)
-            update_display_table(cleaned)
-
-        elif t == "add_net_item_col":
-            retail_idx = p.get("retail_price_index")
-            discount_idx = p.get("discount_percent_index")
-            if retail_idx is None or discount_idx is None:
-                warnings.append("Skipped add_net_item_col: missing indices")
-                continue
-            added = add_net_item_col(retail_idx, discount_idx)
-            update_display_table(added)
     
     return warnings
