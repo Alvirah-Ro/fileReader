@@ -266,7 +266,7 @@ def redo_last_action():
     st.session_state.applied_actions.append(action)
     # Apply just this action on top of the current state (no logging duplication)
     replay_from_actions(
-        actions=[{'type': action['type'], 'params': actions.get('params', {}) or {}}],
+        actions=[{'type': action['type'], 'params': action.get('params', {}) or {}}],
         reset_first=False,
         log_steps=False
     )
