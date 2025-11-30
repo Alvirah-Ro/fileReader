@@ -24,7 +24,9 @@ def save_action_state(action_type, action_name, params=None):
         'main_table': st.session_state.main_table.copy(deep=True) if 'main_table' in st.session_state else None,
 
     }
-    st.session_state.applied_actions.append(action_data)
+    st.session_state.setdefault('applied_actions', []).append(action_data)
+    # Invalidate redo on any new forward action
+    st.session_state['redo_stack'] = []
     return action_id
 
 def update_display_table(new_working_data):

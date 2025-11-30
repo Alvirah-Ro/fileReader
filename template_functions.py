@@ -225,13 +225,49 @@ def undo_last_action():
     actions = st.session_state.get('applied_actions', [])
     if not actions:
         return False
-    actions.pop()
+    last = actions.pop()
+    st.session_state.redo_stack.append(last) # Push to redo
     st.session_state.applied_actions = actions
-
+    # Recompute from original without logging
     replay_from_actions(
         actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in actions],
         reset_first=True,
-        log_steps=False
+        log_steps=False # Don't log steps to avoid duplicating history
     )
     return True
 
+def undo_to_action_id(action_id):
+    """Undo to a specific point, not always the last step"""
+    actions = st.session_state.get('applied_actions', [])
+    if not actions:
+        return False
+    idx = next((i for i, a in enumerate(actions) if a.get('id') == action_id), None)
+    if idx is None:
+        return False
+    # Move removed actions to redo_stack (in order)
+    removed = actions[idx:] # target and all after
+    st.session_state.redo_stack.extend(removed)
+    # Keep the actions before target
+    kept = actions[:idx]
+    st.session_state.applied_actions = kept
+    replay_from_actions(
+        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in trimmed],
+        reset_first=True,
+        log_steps=False # Don't log steps to avoid duplicating history
+    )
+    return True
+
+def redo_last_action():
+    """Redo the most recent undone action."""
+    stack = st.session_state.get('redo_stack', [])
+    if not stack:
+        return False
+    action = stack.pop() # redo one
+    st.session_state.applied_actions.append(action)
+    # Apply just this action on top of the current state (no logging duplication)
+    replay_from_actions(
+        actions=[{'type': action['type'], 'params': actions.get('params', {}) or {}}],
+        reset_first=False,
+        log_steps=False
+    )
+    return True

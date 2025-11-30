@@ -12,7 +12,8 @@ from table_functions import (save_action_state, choose_headers,
 
 from template_functions import (save_template_to_disk, build_template_from_actions,
                                 list_templates, load_template_from_disk, replay_template,
-                                action_label, undo_last_action)
+                                action_label, undo_last_action, undo_to_action_id,
+                                redo_last_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -78,6 +79,10 @@ if uploaded_file is not None:
         # Initialize applied actions tracking
         if 'applied_actions' not in st.session_state:
             st.session_state.applied_actions = []
+
+        # Initialize redo-stack to undo an undo button
+        if 'redo_stack' not in st.session_state:
+            st.session_state.redo_stack = []
 
         # Create columns for table and actions panel
         col_choices, col_break, col_actions = st.columns([4, 1, 2])
@@ -295,15 +300,28 @@ if uploaded_file is not None:
         # Column on the right to display applied actions
         with col_actions:
             st.write("### Applied Actions")
-            if st.session_state.applied_actions:
-                for i, action in enumerate(reversed(st.session_state.applied_actions)):
+            actions = st.session_state.get('applied_actions', [])
+            redo_stack = st.session_state.get('redo_stack', [])
+            if actions:
+                for i, action in enumerate(reversed(actions)):
                     with st.container():
-                        st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
-                        # st.write(f"_Applied at: {action['timestamp']}_")
+                        idx = len(actions) - 1 - i # original index
+                        st.write(f"**{idx + 1}. {action['name']}**")
 
-                        if st.button(f"Undo {action['name']}", key=f"undo_last{action['id']}", type="secondary"):
-                            undo_last_action()
-                            st.rerun()
+                        if i == 0:
+                            # Most recent action: "Undo {name}"
+                            if st.button(f"Undo {action['name']}", key=f"undo_last{action['id']}", type="secondary"):
+                                undo_last_action()
+                                st.rerun()
+                            if st.button("Redo", key="redo_btn", type="secondary", disabled=not redo_stack):
+                                if redo_last_action():
+                                    st.rerun()
+                        else:
+                            # Older actions: undo back to this point
+                            if st.button("Undo to here", key=f"undo_to{action['id']}", type="secondary"):
+                                undo_to_action_id(action['id'])
+                                st.rerun()
+
 
         # Reset button to start over
         if st.button("Reset to Original", key="reset_btn", type="primary"):
