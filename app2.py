@@ -10,13 +10,9 @@ from table_functions import (save_action_state, choose_headers,
                              fix_concatenated_table, update_display_table, remove_duplicate_headers,
                              delete_unwanted_rows, add_net_item_col)
 
-from undo_table_functions import (undo_choose_headers_action,
-                                  undo_delete_rows_action, undo_fix_concatenated_action,
-                                  undo_net_item_col_action, undo_remove_duplicates_action)
-
 from template_functions import (save_template_to_disk, build_template_from_actions,
                                 list_templates, load_template_from_disk, replay_template,
-                                action_label)
+                                action_label, undo_last_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -305,34 +301,9 @@ if uploaded_file is not None:
                         st.write(f"**{len(st.session_state.applied_actions) - i}. {action['name']}**")
                         # st.write(f"_Applied at: {action['timestamp']}_")
 
-                    # Specific undo button for each action type
-                    if action['type'] == 'fix_concatenated':
-                        if st.button(f"↶ Undo Fix", key=f"undo_fix_{action['id']}", type="secondary"):
-                            undo_fix_concatenated_action(action['id'])
+                        if st.button(f"Undo {action['name']}", key=f"undo_last{action['id']}", type="secondary"):
+                            undo_last_action()
                             st.rerun()
-
-                    elif action['type'] == 'apply_headers':
-                        if st.button(f"↶ Undo Headers", key=f"undo_headers_{action['id']}", type="secondary"):
-                            undo_choose_headers_action(action['id'])
-                            st.rerun()
-                    
-                    elif action['type'] == 'remove_duplicates':
-                        if st.button(f"↶ Undo Remove Duplicates", key=f"undo_duplicates_{action['id']}", type="secondary"):
-                            undo_remove_duplicates_action(action['id'])
-                            st.rerun()
-
-                    elif action['type'] == 'delete_unwanted_rows':
-                        if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
-                            undo_delete_rows_action(action['id'])
-                            st.rerun()
-
-                    elif action['type'] == 'add_net_item_col':
-                        if st.button(f"↶ Undo Add Item Net", key=f"undo_net_item_col_{action['id']}", type="secondary"):
-                            undo_net_item_col_action(action['id'])
-                            st.rerun()
-
-            else:
-                st.info("No actions applied yet")
 
         # Reset button to start over
         if st.button("Reset to Original", key="reset_btn", type="primary"):

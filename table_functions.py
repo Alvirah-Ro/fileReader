@@ -2,11 +2,11 @@
 Table processing functions
 """
 
-import streamlit as st
-import pandas as pd
 import uuid
 from datetime import datetime
 import re
+import streamlit as st
+import pandas as pd
 
 
 def save_action_state(action_type, action_name, params=None):
@@ -20,6 +20,7 @@ def save_action_state(action_type, action_name, params=None):
         'params': params or {}, # store parameters here
         'working_data': [r[:] for r in st.session_state.working_data] if 'working_data' in st.session_state else None,
         'current_headers': list(st.session_state.current_headers) if st.session_state.get('current_headers') else None,
+        'header_row_index': st.session_state.get('header_row_index'),
         'main_table': st.session_state.main_table.copy(deep=True) if 'main_table' in st.session_state else None,
 
     }
@@ -74,6 +75,7 @@ def to_float(value, default=0.0):
         return -num if neg else num
     except:
         return default
+
 
 def clean_duplicate_headers(headers):
     """

@@ -137,7 +137,7 @@ def build_template_from_actions(applied_actions):
         for req in cfg["required"]:
             if p.get(req) is None: # missing in saved params
                 p[req] = ss.get(req) # try session fallback
-            if p.get(req): # still missing after fallback
+            if p.get(req) is None: # still missing after fallback
                 warnings.append(f"Missing {req} for {t}")
         
         tpl_actions.append({"type": t, "params": p})
@@ -205,3 +205,33 @@ def replay_template(tpl, reset_first=True, log_steps=True):
             update_display_table(st.session_state.working_data)
     
     return warnings
+
+def replay_from_actions(actions, reset_first=True, log_steps=False):
+    """
+    Recompute state by replaying a plain actions list using replay_template.
+    Use to help undo last action.
+    """
+    tpl = {
+        "name": "_replay_from_actions",
+        "version": "K",
+        "created_at": datetime.now(UTC).isoformat(),
+        "actions": actions,
+        "warnings": [],
+    }
+    return replay_template(tpl, reset_first=reset_first, log_steps=log_steps)
+
+def undo_last_action():
+    """Removes last action and replays list of actions without it"""
+    actions = st.session_state.get('applied_actions', [])
+    if not actions:
+        return False
+    actions.pop()
+    st.session_state.applied_actions = actions
+
+    replay_from_actions(
+        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in actions],
+        reset_first=True,
+        log_steps=False
+    )
+    return True
+
