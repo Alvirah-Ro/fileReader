@@ -6,11 +6,11 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import (save_action_state, choose_headers, apply_data_start,
+from table_functions import (save_action_state, choose_headers,
                              fix_concatenated_table, update_display_table, remove_duplicate_headers,
                              delete_unwanted_rows, add_net_item_col)
 
-from undo_table_functions import (undo_choose_headers_action, undo_data_start_action,
+from undo_table_functions import (undo_choose_headers_action,
                                   undo_delete_rows_action, undo_fix_concatenated_action,
                                   undo_net_item_col_action, undo_remove_duplicates_action)
 
@@ -117,8 +117,6 @@ if uploaded_file is not None:
                                 
                                 choose_headers(header_row_input)
                                 st.session_state.header_row_index = int(header_row_input)
-                                # Automatically start data after header row
-                                st.session_state.data_start_index = st.session_state.header_row_index + 1
 
                                 # Update main table
                                 update_display_table(st.session_state.working_data)
@@ -145,30 +143,6 @@ if uploaded_file is not None:
                             st.rerun()
                     else:
                         st.info("Please select headers first to identify which rows to remove")
-
-
-
-                # # Choose row where actual data starts
-                # with st.expander("Choose Data Start"):
-                #     if 'current_headers' in st.session_state and st.session_state.current_headers:
-                #         # Row input for data start
-                #         data_start_input = st.number_input("Select the first row that contains actual data",
-                #                                     min_value=st.session_state.get('header_row_index', 0) + 1,
-                #                                     max_value=len(st.session_state.working_data) - 1,
-                #                                     value=st.session_state.get('header_row_index', 0) + 1,
-                #                                     key="data_start_selector")
-                        
-                #         if st.button("Apply Data Start", key="data_start_btn", type="primary"):
-                #                 params={'data_start_index': int(data_start_input)}
-                #                 name = action_label('apply_data_start', params)
-                #                 save_action_state('apply_data_start', name, params=params)
-
-                #                 apply_data_start(data_start_input) # Set the index only
-
-                #                 # Update main table
-                #                 update_display_table(st.session_state.working_data)
-                #                 st.success(f"Data now starts at former row {data_start_input}!")
-                #                 st.rerun()
 
             with tab2:
 
@@ -347,11 +321,6 @@ if uploaded_file is not None:
                             undo_remove_duplicates_action(action['id'])
                             st.rerun()
 
-                    elif action['type'] == 'apply_data_start':
-                        if st.button(f"↶ Undo Apply Data Start", key=f"undo_data_start_{action['id']}", type="secondary"):
-                            undo_data_start_action(action['id'])
-                            st.rerun()
-
                     elif action['type'] == 'delete_unwanted_rows':
                         if st.button(f"↶ Undo Delete Unwanted Rows", key=f"undo_delete_{action['id']}", type="secondary"):
                             undo_delete_rows_action(action['id'])
@@ -374,7 +343,7 @@ if uploaded_file is not None:
                 st.session_state.working_data = combined_table.values.tolist()
 
                 # Clear ALL session state variables including applied_actions
-                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions', 'data_start_index']:
+                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
                     if key in st.session_state:
                         del st.session_state[key]
 

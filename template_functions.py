@@ -2,15 +2,17 @@
 Template functions
 """
 
-
-import streamlit as st
-import json, os, re
 from datetime import datetime, UTC
+import json
+import os
+import re
+import streamlit as st
 
-from table_functions import (choose_headers, apply_data_start,
-                             fix_concatenated_table, update_display_table,
-                             remove_duplicate_headers, delete_unwanted_rows,
-                             add_net_item_col, save_action_state)
+
+from table_functions import (choose_headers, fix_concatenated_table,
+                             update_display_table, remove_duplicate_headers,
+                             delete_unwanted_rows, add_net_item_col,
+                             save_action_state)
 
 
 # Relative folder where all templates live 
@@ -171,7 +173,6 @@ def replay_template(tpl, reset_first=True, log_steps=True):
         st.session_state.working_data = [r[:] for r in st.session_state.original_table_data]
         st.session_state.current_headers = None
         st.session_state.header_row_index = None
-        st.session_state.data_start_index = None
         update_display_table(st.session_state.working_data)
 
     for step in tpl.get("actions", []):

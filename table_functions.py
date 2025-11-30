@@ -28,26 +28,25 @@ def save_action_state(action_type, action_name, params=None):
 
 def update_display_table(new_working_data):
     """
-    Update the main display table with current formatting settings
-    Handles headers and data start automatically
+    Build DataFrame from working_data while hiding the header source row (if chosen).
     """
     # Update working data
     st.session_state.working_data = new_working_data
-    # Apply current formatting if it exists
-    headers_to_use = st.session_state.get('current_headers', None)
-    # Handle data start if it was previously set
-    if 'data_start_index' in st.session_state and st.session_state.data_start_index is not None:
-        data_start = st.session_state.data_start_index
-        if data_start < len(new_working_data):
-            display_data = new_working_data[data_start:]
-        else:
-            display_data = new_working_data
-            st.warning(f"Previous data start row {data_start} exceeds new table length")
+    header_row_idx = st.session_state.get("header_row_index")
+    headers_to_use = st.session_state.get("current_headers")
+
+    # Hide header row without mutating working data
+    if header_row_idx is not None and 0<= header_row_idx < len(new_working_data):
+        display_rows = [r for i, r in enumerate(new_working_data) if i != header_row_idx]
     else:
-        display_data = new_working_data
+        display_rows = new_working_data
+
+    # Header length guard
+    if headers_to_use and display_rows and len(headers_to_use) != len(display_rows[0]):
+        headers_to_use = None
 
     # Update display
-    st.session_state.main_table = pd.DataFrame(display_data, columns= headers_to_use)
+    st.session_state.main_table = pd.DataFrame(display_rows, columns= headers_to_use)
 
 def to_float(value, default=0.0):
     """
@@ -139,28 +138,21 @@ def remove_duplicate_headers(table_data, header_row_index):
     return cleaned_data
 
 
-def apply_data_start(data_start_input):
-    """Set data start point and slice working data accordingly"""
-    # Store data start index
-    st.session_state.data_start_index = data_start_input
-
-    # Get sliced data from working data
-    current_data = st.session_state.working_data
-    sliced_data = current_data[data_start_input:]
-
-    return sliced_data
-
-
 def fix_concatenated_table(table):
-    """Fix tables where PDFPlumber concatenates column data"""
-
+    """Fix tables where PDFPlumber concatenates column data, preserving header row unchanged."""
     # For example: if every row of data in a column is showing up in 1 cell
     if  not table or len(table) < 2:
         return table
-                
+    
+    header_row_idx = st.session_state.get("header_row_index")
     fixed_rows = []
     # Process each row
-    for row in table:
+    for i, row in enumerate(table):
+        #Preserve header row (do not split)
+        if header_row_idx is not None and i == header_row_idx:
+            fixed_rows.append(row[:])
+            continue
+        
         # Split each cell by newlines to get individual values
         split_cells = []
         max_items = 0 # Start at 0 to find out how many separate rows we need to create
