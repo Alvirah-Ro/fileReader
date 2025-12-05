@@ -217,81 +217,89 @@ if uploaded_file is not None:
             with tab3:
 
                 with st.expander("Alter columns"):
-                    st.write("Add a Net-per-Item Column")
-                    retail_price_input = st.number_input("Column number for retail price (1 = first column)",
-                                                    min_value=1,
-                                                    max_value=max((len(r) for r in st.session_state.working_data),
+                    with st.form("add_net_form"):
+                        st.write("Add a Net-per-Item Column")
+                        retail_price_input = st.number_input("Column number for retail price (1 = first column)",
+                                                        min_value=1,
+                                                        max_value=max((len(r) for r in st.session_state.working_data),
                                                                         default=0),
-                                                    value=1,
-                                                    key="retail_price_col_selector"
-                                                    )
-                    discount_percent_input = st.number_input("Column number for discount percent (1 = first column)",
-                                                    min_value=1,
-                                                    max_value=max((len(r) for r in st.session_state.working_data),
-                                                                        default=0),
-                                                    value=1,
-                                                    key="discount_percent_col_selector"
-                                                    )
+                                                        value=1,
+                                                        key="retail_price_col_selector"
+                                                        )
+                        discount_percent_input = st.number_input("Column number for discount percent (1 = first column)",
+                                                        min_value=1,
+                                                        max_value=max((len(r) for r in st.session_state.working_data),
+                                                                            default=0),
+                                                        value=1,
+                                                        key="discount_percent_col_selector"
+                                                        )
                     
-                    # Subtract 1 since users will be using 1 base instead of 0 base indexing
-                    retail_idx = retail_price_input - 1
-                    discount_idx = discount_percent_input - 1
+                        # Subtract 1 since users will be using 1 base instead of 0 base indexing
+                        retail_idx = retail_price_input - 1
+                        discount_idx = discount_percent_input - 1
 
-                    if st.button("Add Net-per-Item Column", type="primary"):
-                        params={
-                            'retail_price_index' : int(retail_idx),
-                            'discount_percent_index' : int(discount_idx)
-                        }
-                        name = action_label('add_net_item_col', params)
-                        save_action_state('add_net_item_col', name, params=params)
+                        if st.form_submit_button("Add Net-per-Item Column", type="primary"):
+                            params={
+                                'retail_price_index' : int(retail_idx),
+                                'discount_percent_index' : int(discount_idx)
+                            }
+                            name = action_label('add_net_item_col', params)
+                            save_action_state('add_net_item_col', name, params=params)
 
-                        added_net_table = add_net_item_col(retail_idx, discount_idx)       
-                        update_display_table(added_net_table)
-                        st.success("Added Net-per-Item Column")
-                        st.rerun()
+                            added_net_table = add_net_item_col(retail_idx, discount_idx)       
+                            update_display_table(added_net_table)
+                            st.success("Added Net-per-Item Column")
+                            st.rerun()
 
             with tab4:
                 
-                # Button to save template to disk
+                # Save Template
                 if st.session_state.applied_actions:
-                    st.write("#### Save Template")
-                    template_name = st.text_input("Please enter name of template")
-                    if template_name:
-                        st.session_state.template_name = template_name
-                        if st.button("Click to save template"):
-                            tpl = build_template_from_actions(st.session_state.applied_actions)
-                            for w in tpl.get("warnings", []):
-                                st.warning(w)
-
-                            path = save_template_to_disk(tpl)
-                            st.success(f"Template: {template_name} saved!")
-
-
-                st.write("#### Load Template")
-                template_list = list_templates() # Returns list of filenames
-
-                if not template_list:
-                    st.info("No templates saved yet.")
-                else:
-                    selected = st.selectbox(
-                        "Choose a template to apply",
-                        template_list,
-                        index=None,
-                        placeholder="Select template"
-                    )
-                    reset_before = st.checkbox("Reset to original before applying", value=True)
-
-                    if selected and st.button(f"Apply Selected Template", type="primary"):
-                            tpl = load_template_from_disk(selected)
-                            if not tpl:
-                                st.error(f"Could not load template: {selected}")
+                    with st.form("save_template_form"):
+                        st.write("#### Save Template")
+                        template_name = st.text_input("Please enter name of template", key="save_template-name")
+                        save_clicked = st.form_submit_button("Click to save template", type="primary")
+                        if save_clicked:
+                            if not template_name or not template_name.strip():
+                                st.error("Please enter a template name")
                             else:
-                                # Show any stored warnings prior to replay
-                                warnings = replay_template(tpl, reset_first=reset_before, log_steps=True)
-                                for w in warnings:
+                                st.session_state.template_name = template_name.strip()
+                                tpl = build_template_from_actions(st.session_state.applied_actions)
+                                for w in tpl.get("warnings", []):
                                     st.warning(w)
-                                st.success(f"Template replayed: {tpl.get('name', selected)}")
-                                st.rerun()
+                                path = save_template_to_disk(tpl)
+                                st.success(f"Template: {template_name} saved!")
+
+                with st.form("load_template_form"):
+                    st.write("#### Load Template")
+                    template_list = list_templates() # Returns list of filenames
+                    if not template_list:
+                        st.info("No templates saved yet.")
+                    else:
+                        selected = st.selectbox(
+                            "Choose a template to apply",
+                            template_list,
+                            index=None,
+                            placeholder="Select template"
+                        )
+                        reset_before = st.checkbox("Reset to original before applying", value=True)
+                        apply_clicked = st.form_submit_button(f"Apply Selected Template", type="primary")
+
+                        if apply_clicked:
+                            if not selected:
+                                st.error("Please select a template.")
+                            else:
+                                tpl = load_template_from_disk(selected)
+                                if not tpl:
+                                    st.error(f"Could not load template: {selected}")
+                                else:
+                                    st.session_state.redo_stack = []
+                                    # Show any stored warnings prior to replay
+                                    warnings = replay_template(tpl, reset_first=reset_before, log_steps=True)
+                                    for w in warnings:
+                                        st.warning(w)
+                                    st.success(f"Template replayed: {tpl.get('name', selected)}")
+                                    st.rerun()
 
         # Space between columns
         with col_break:
