@@ -302,6 +302,11 @@ if uploaded_file is not None:
             st.write("### Applied Actions")
             actions = st.session_state.get('applied_actions', [])
             redo_stack = st.session_state.get('redo_stack', [])
+            if redo_stack:
+                if st.button(f"Redo {redo_stack[-1]['name']}" if redo_stack else "Redo", key="redo_btn", type="secondary"):
+                    if redo_last_action():
+                        st.rerun()
+
             if actions:
                 for i, action in enumerate(reversed(actions)):
                     with st.container():
@@ -311,10 +316,7 @@ if uploaded_file is not None:
                         if i == 0:
                             # Most recent action: "Undo {name}"
                             if st.button(f"Undo {action['name']}", key=f"undo_last{action['id']}", type="secondary"):
-                                undo_last_action()
-                                st.rerun()
-                            if st.button("Redo", key="redo_btn", type="secondary", disabled=not redo_stack):
-                                if redo_last_action():
+                                if undo_last_action():
                                     st.rerun()
                         else:
                             # Older actions: undo back to this point

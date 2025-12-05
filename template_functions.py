@@ -251,7 +251,7 @@ def undo_to_action_id(action_id):
     kept = actions[:idx]
     st.session_state.applied_actions = kept
     replay_from_actions(
-        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in trimmed],
+        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in actions],
         reset_first=True,
         log_steps=False # Don't log steps to avoid duplicating history
     )
