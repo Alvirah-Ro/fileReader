@@ -51,6 +51,32 @@ def update_display_table(new_working_data):
     # Update display
     st.session_state.main_table = pd.DataFrame(display_rows, columns= headers_to_use)
 
+def reset_all():
+    """
+    Reset everything to the initial state
+    - restore working_data from original_table_data
+    - clear headers/state flags
+    - clear applied actions_and redo_stack
+    - rebuild main_table
+    """
+    # Restore original data
+    original = [r[:] for r in st.session_state.get('original_table_data', [])]
+    st.session_state.working_data = original
+
+    # Clear common state flags
+    for key in [
+        "current_headers",
+        "header_row_index",
+    ]:
+        st.session_state.pop(key, None)
+
+    # Clear history
+    st.session_state['applied_actions'] = []
+    st.session_state['redo_stack'] = []
+
+    # Re-render
+    st.session_state.main_table = pd.DataFrame(st.session_state.working_data, columns=None)
+
 def to_float(value, default=0.0):
     """
     Convert mixed numeric cell content to float.

@@ -6,7 +6,7 @@ import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import (save_action_state, choose_headers,
+from table_functions import (reset_all, save_action_state, choose_headers,
                              fix_concatenated_table, update_display_table, remove_duplicate_headers,
                              delete_unwanted_rows, add_net_item_col)
 
@@ -59,7 +59,7 @@ if uploaded_file is not None:
             st.session_state.main_table = combined_table
             # Convert dataframe to list of lists for processing
             st.session_state.table_as_list = combined_table.values.tolist()
-            # Always preserve 
+            # Always preserve original data
             st.session_state.original_table_data = [r[:] for r in st.session_state.table_as_list]
             st.session_state.working_data = [r[:] for r in st.session_state.table_as_list]
             st.session_state.current_headers = None
@@ -335,19 +335,12 @@ if uploaded_file is not None:
 
         # Reset button to start over
         if st.button("Reset to Original", key="reset_btn", type="primary"):
-            if all_tables:
-                combined_table = pd.concat(all_tables, ignore_index=True)
-                st.session_state.main_table = combined_table
-                st.session_state.table_as_list = combined_table.values.tolist()
-                st.session_state.working_data = combined_table.values.tolist()
-
-                # Clear ALL session state variables including applied_actions
-                for key in ['current_headers', 'raw_headers', 'header_row_index', 'applied_actions']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-
-                st.success("Table reset to original!")
-                st.rerun()
+            # Ensure original_table_data is initialized for this file/session
+            if 'original_table_data' not in st.session_state and 'table_as_list' in st.session_state:
+                st.session_state.original_table_data = [r[:] for r in st.session_state.table_as_list]
+            reset_all()
+            st.success("Table reset to original!")
+            st.rerun()
 
 
     # Fallback: show text for manual copy/paste
