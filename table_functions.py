@@ -8,21 +8,25 @@ import re
 import streamlit as st
 import pandas as pd
 
+from template_functions import action_label
 
-def save_action_state(action_type, action_name, params=None):
+
+def save_action_state(action_type, action_name=None, params=None):
     """Save current state before applying an action"""
+    # Compute label from ACTIONS registry if not provided
+    label = action_name or action_label(action_type, params or {})
     action_id = str(uuid.uuid4())[:8]
     action_data= {
         'id': action_id,
         'type': action_type,
+        'params': params or {}, # store parameters here
+        'label': label,
         'name': action_name,
         'timestamp': datetime.now().strftime("%H:%M:%S"),
-        'params': params or {}, # store parameters here
         'working_data': [r[:] for r in st.session_state.working_data] if 'working_data' in st.session_state else None,
         'current_headers': list(st.session_state.current_headers) if st.session_state.get('current_headers') else None,
         'header_row_index': st.session_state.get('header_row_index'),
         'main_table': st.session_state.main_table.copy(deep=True) if 'main_table' in st.session_state else None,
-
     }
     st.session_state.setdefault('applied_actions', []).append(action_data)
     # Invalidate redo on any new forward action

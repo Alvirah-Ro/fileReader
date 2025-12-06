@@ -90,6 +90,53 @@ def action_label(action_type, params):
         # Fallback if formatting errors occur
         return action_type
 
+def _invoke(cfg, params):
+    """Small dispatcher to execute action's function based on entry in ACTIONS"""
+    func = cfg["func"]
+    args = []
+    for spec in cfg["args"]:
+        if spec == "working_data":
+            args.append(st.session_state.working_data)
+        else:
+            args.append(params.get(spec))
+    try:
+        result = func(*args)
+        return result, []
+    except Exception as e:
+        return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
+    
+def run_action(action_type, params):
+    """
+    Use the ACTIONS registry to run all functions, update display,
+    and log into Applied Actions once.
+    """
+    cfg = ACTIONS.get(action_type)
+    if not cfg:
+        st.warning(f"Unknown action: {action_type}")
+        return
+    
+    # Validate required params
+    missing = [req for req in cfg["required"] if params.get(req) is None]
+    if missing:
+        st.warning(f"Missing {', '.join(missing)} for {action_type}")
+        return
+    
+    # Log once
+    save_action_state(action_type, action_label(action_type, params), params=params)
+
+    # 'invoke and render
+    result, warnings = _invoke(cfg, params)
+    for w in warnings:
+        st.warning(w)
+
+    if cfg["reuturns_data"]:
+        if result is not None:
+            update_display_table(result)
+        else:
+            st.warning(f"{action_type} returned no data")
+    elif cfg.get("post_update"):
+        update_display_table(st.session_state.working_data)
+
 def ensure_templates_dir():
     """Create a templates directory if it doesn't already exist"""
     os.makedirs(TEMPLATES_DIR, exist_ok=True)
@@ -149,21 +196,6 @@ def build_template_from_actions(applied_actions):
         "actions": tpl_actions,
         "warnings": warnings,
     }
-
-def _invoke(cfg, params):
-    """Small dispatcher to execute action's function based on entry in ACTIONS"""
-    func = cfg["func"]
-    args = []
-    for spec in cfg["args"]:
-        if spec == "working_data":
-            args.append(st.session_state.working_data)
-        else:
-            args.append(params.get(spec))
-    try:
-        result = func(*args)
-        return result, []
-    except Exception as e:
-        return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
 
 def replay_template(tpl, reset_first=True, log_steps=True):
     """Accesses template and replays all steps to recreate the set table format"""

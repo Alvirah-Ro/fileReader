@@ -13,7 +13,7 @@ from table_functions import (reset_all, save_action_state, choose_headers,
 from template_functions import (save_template_to_disk, build_template_from_actions,
                                 list_templates, load_template_from_disk, replay_template,
                                 action_label, undo_last_action, undo_to_action_id,
-                                redo_last_action)
+                                redo_last_action, run_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
@@ -113,9 +113,7 @@ if uploaded_file is not None:
                             if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
                                 # Save current state before applying changes
                                 params={'header_row_index': int(header_row_input)}
-                                name = action_label('apply_headers', params)
-                                save_action_state('apply_headers', name, params=params)
-                                
+                                save_action_state('apply_headers', params=params)
                                 choose_headers(header_row_input)
                                 st.session_state.header_row_index = int(header_row_input)
 
