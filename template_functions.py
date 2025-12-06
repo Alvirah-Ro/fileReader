@@ -241,17 +241,24 @@ def undo_to_action_id(action_id):
     actions = st.session_state.get('applied_actions', [])
     if not actions:
         return False
+    
     idx = next((i for i, a in enumerate(actions) if a.get('id') == action_id), None)
     if idx is None:
         return False
+    
     # Move removed actions to redo_stack (in order)
     removed = actions[idx:] # target and all after
-    st.session_state.redo_stack.extend(removed)
+    # Put target action on top of redo stack by pushing in reverse order
+    for a in reversed(removed):
+        st.session_state.redo_stack.append(a)
+
     # Keep the actions before target
     kept = actions[:idx]
     st.session_state.applied_actions = kept
+
+    # Replay the kept actions only
     replay_from_actions(
-        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in actions],
+        actions=[{'type': a['type'], 'params': a.get('params', {}) or {}} for a in kept],
         reset_first=True,
         log_steps=False # Don't log steps to avoid duplicating history
     )

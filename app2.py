@@ -311,25 +311,28 @@ if uploaded_file is not None:
             actions = st.session_state.get('applied_actions', [])
             redo_stack = st.session_state.get('redo_stack', [])
             if redo_stack:
-                if st.button(f"Redo {redo_stack[-1]['name']}" if redo_stack else "Redo", key="redo_btn", type="secondary"):
+                next_redo = redo_stack[-1]
+                redo_label = action_label(next_redo['type'], next_redo.get('params', {}) or {})
+                if st.button(f"Redo {redo_label}", key="redo_btn", type="secondary"):
                     if redo_last_action():
                         st.rerun()
 
             if actions:
-                for i, action in enumerate(reversed(actions)):
+                for i, a in enumerate(reversed(actions)):
                     with st.container():
                         idx = len(actions) - 1 - i # original index
-                        st.write(f"**{idx + 1}. {action['name']}**")
+                        label = action_label(a['type'], a.get('params', {}) or {})
+                        st.write(f"**{idx + 1}. {label}**")
 
                         if i == 0:
                             # Most recent action: "Undo {name}"
-                            if st.button(f"Undo {action['name']}", key=f"undo_last{action['id']}", type="secondary"):
+                            if st.button(f"Undo {label}", key=f"undo_last{a['id']}", type="secondary"):
                                 if undo_last_action():
                                     st.rerun()
                         else:
                             # Older actions: undo back to this point
-                            if st.button("Undo to here", key=f"undo_to{action['id']}", type="secondary"):
-                                undo_to_action_id(action['id'])
+                            if st.button("Undo to here", key=f"undo_to{a['id']}", type="secondary"):
+                                undo_to_action_id(a['id'])
                                 st.rerun()
 
 
