@@ -1,19 +1,15 @@
 """ 
-Automated PDF table extractor: Version A
+Automated PDF table extractor: Version K
 """
 
 import streamlit as st
 import pdfplumber
 import pandas as pd
 # Import custom functions
-from table_functions import (reset_all, save_action_state, choose_headers,
-                             fix_concatenated_table, update_display_table, remove_duplicate_headers,
-                             delete_unwanted_rows, add_net_item_col)
-
-from template_functions import (save_template_to_disk, build_template_from_actions,
-                                list_templates, load_template_from_disk, replay_template,
-                                action_label, undo_last_action, undo_to_action_id,
-                                redo_last_action, run_action)
+from table_functions import (reset_all, save_template_to_disk, build_template_from_actions,
+                             list_templates, load_template_from_disk, replay_template,
+                             action_label, undo_last_action, undo_to_action_id,
+                             redo_last_action, run_action)
 
 st.title('Automated PDF Table Extractor: Version K')
 
