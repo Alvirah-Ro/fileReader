@@ -91,16 +91,57 @@ def action_label(action_type, params):
         return action_type
 
 def _invoke(cfg, params):
-    """Small dispatcher to execute action's function based on entry in ACTIONS"""
+    """
+    Small dispatcher to execute action's function based on entry in ACTIONS.
+    Also protects header rows.
+    """
     func = cfg["func"]
-    args = []
-    for spec in cfg["args"]:
+    specs = cfg["args"]
+
+    # Find actions that consume working_data
+    uses_working = any(spec == "working_data" for spec in specs)
+    ss = st.session_state
+    header_idx = ss.get("header_row_index")
+    rows = ss.get("working_data", [])
+
+    # If action uses working_data and a header row is selected,
+    # run the transform on data-only rows (exclude header), then reinsert header unchanged.
+    if uses_working and rows and header_idx is not None and 0 <= header_idx < len(rows):
+        header_row = rows[header_idx]
+        # Also protect rows that equal the original header content, if stored
+        raw_headers = ss.get("raw_headers")
+        data_only = [
+            r for i, r in enumerate(rows)
+            if i != header_idx and (raw_headers is None or r != raw_headers)
+        ]
+
+        # Build args, substituting data_only for working_data
+        call_args = []
+        for spec in specs:
+            if spec == "working_data":
+                call_args.append(data_only)
+            else:
+                call_args.append(params.get(spec))
+        try:
+            result = func(*call_args)
+            # If the action returns data, reinsert the header at (min) original index
+            if cfg["returns_data"]:
+                result = result or data_only
+                insert_at = min(header_idx, len(result))
+                result = result[:insert_at] + [header_row[:]] + result[insert_at:]
+            return result, []
+        except Exception as e:
+            return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
+        
+    # Normal path (no header protection needed)
+    call_args = []
+    for spec in specs:
         if spec == "working_data":
-            args.append(st.session_state.working_data)
+            call_args.append(ss.get("working_data", []))
         else:
-            args.append(params.get(spec))
+            call_args.append(params.get(spec))
     try:
-        result = func(*args)
+        result = func(*call_args)
         return result, []
     except Exception as e:
         return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
@@ -129,7 +170,7 @@ def run_action(action_type, params):
     for w in warnings:
         st.warning(w)
 
-    if cfg["reuturns_data"]:
+    if cfg["returns_data"]:
         if result is not None:
             update_display_table(result)
         else:

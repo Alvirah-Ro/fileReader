@@ -113,12 +113,9 @@ if uploaded_file is not None:
                             if st.form_submit_button("Click to Apply Headers", key="choose_headers_btn", type="primary"):
                                 # Save current state before applying changes
                                 params={'header_row_index': int(header_row_input)}
-                                save_action_state('apply_headers', params=params)
-                                choose_headers(header_row_input)
+                                # run_action replaces save_action_state + choose_headers + update_display_table
+                                run_action("apply_headers", params)
                                 st.session_state.header_row_index = int(header_row_input)
-
-                                # Update main table
-                                update_display_table(st.session_state.working_data)
                                 st.toast(f"Headers applied from row {header_row_input}!")
                                 st.rerun()
 
@@ -129,16 +126,8 @@ if uploaded_file is not None:
                         if st.button("Remove Duplicate Header Rows", key = "remove_duplicates_btn", type="primary"):
                             # Save current state before applying changes
                             params={'header_row_index': int(st.session_state.get('header_row_index', 0))}
-                            name = action_label('remove_duplicates', params)
-                            save_action_state('remove_duplicates', name, params=params)
-
-                            # Work from current working data
-                            source_data = st.session_state.working_data
-                            cleaned_data = remove_duplicate_headers(source_data, st.session_state.header_row_index)
-
-                            # Use helper function to handle formatting
-                            update_display_table(cleaned_data)
-                            st.success("Removed duplicate header rows!")
+                            run_action("remove_duplicates", params)
+                            st.toast("Removed duplicate header rows!")
                             st.rerun()
                     else:
                         st.info("Please select headers first to identify which rows to remove")
@@ -150,17 +139,9 @@ if uploaded_file is not None:
                     if st.button("Fix rows that have been combined", key="fix_concat_btn", type="primary"):
                         # Save current state before applying changes
                             params={}
-                            name = action_label('fix_concatenated', params)
-                            save_action_state('fix_concatenated', name, params=params)
-
-                            # Always work from working data
-                            source_data = st.session_state.working_data
-                            fixed_table = fix_concatenated_table(source_data)
-                            if fixed_table:
-                                # Use helper function to handle all formatting automatically
-                                update_display_table(fixed_table)
-                                st.success("Table rows have been separated!")
-                                st.rerun()
+                            run_action("fix_concatenated", params)
+                            st.toast("Table rows have been separated!")
+                            st.rerun()
 
                 # Delete unwanted rows without real data
                 with st.expander("Delete Rows"):
@@ -200,18 +181,12 @@ if uploaded_file is not None:
                             'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
                             'scope': 'first_cell'
                         }
-                        name = action_label('delete_unwanted_rows', params)
-                        save_action_state('delete_unwanted_rows', name, params=params)
-                        
-                        cleaned_table = delete_unwanted_rows(search_pattern)
-                        if cleaned_table:
-                            # Use helper function to handle all formatting automatically
-                            update_display_table(cleaned_table)
-                            if 'debug_matches' in st.session_state:
-                                st.write("Rows that matched pattern:", st.session_state.debug_matches)
-                                del st.session_state.debug_matches
-                            st.success(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
-                            st.rerun()
+                        run_action("delete_unwanted_rows", params)
+                        if 'debug_matches' in st.session_state:
+                            st.write("Rows that matched pattern:", st.session_state.debug_matches)
+                            del st.session_state.debug_matches
+                        st.toast(f"Deleted rows where first cell contains: {delete_row_input if delete_row_input != 'other' else custom_pattern}")
+                        st.rerun()
             with tab3:
 
                 with st.expander("Alter columns"):
@@ -241,12 +216,8 @@ if uploaded_file is not None:
                                 'retail_price_index' : int(retail_idx),
                                 'discount_percent_index' : int(discount_idx)
                             }
-                            name = action_label('add_net_item_col', params)
-                            save_action_state('add_net_item_col', name, params=params)
-
-                            added_net_table = add_net_item_col(retail_idx, discount_idx)       
-                            update_display_table(added_net_table)
-                            st.success("Added Net-per-Item Column")
+                            run_action("add_net_item_col", params)
+                            st.toast("Added Net-per-Item Column")
                             st.rerun()
 
             with tab4:
