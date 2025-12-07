@@ -51,7 +51,7 @@ def update_display_table(new_working_data):
     for i, r in enumerate(new_working_data):
         if header_row_idx is not None and i == header_row_idx:
             continue
-        if raw_headers is not None and r == raw_headers:
+        if raw_headers is not None and r == raw_headers: # hides duplicate header rows
             continue
         display_rows.append(r)
 
