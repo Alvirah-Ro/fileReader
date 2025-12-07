@@ -183,6 +183,24 @@ def delete_unwanted_rows(search_pattern):
 
     return kept_rows
 
+def delete_unwanted_cols(search_pattern):
+    """Delete columns that don't contain actual data - pick by input"""
+    kept_cols = []
+    matched_cols = []
+
+    for i, col in enumerate(st.session_state.working_data):
+        # Check if columns match pattern
+        if re.search(search_pattern, col):
+            matched_cols.append(i, col)
+        else:
+            kept_cols.append(col)
+    
+    # Store matches in session state to show later if needed
+    if matched_cols:
+        st.session_state.debug_matched_cols = matched_cols
+    
+    return kept_cols
+
 
 def add_net_item_col(retail_idx, discount_idx, header_name="Item Net"):
     """
@@ -268,6 +286,14 @@ ACTIONS = {
         "required": ["pattern"],
         "label": "Delete Rows: {pattern}",
         "func": delete_unwanted_rows,
+        "args": ["pattern"],
+        "returns_data": True,
+        "post_update": False,
+    },
+    "delete_unwanted_cols": {
+        "required": ["pattern"],
+        "label": "Delete Columns: {pattern}",
+        "func": delete_unwanted_cols,
         "args": ["pattern"],
         "returns_data": True,
         "post_update": False,

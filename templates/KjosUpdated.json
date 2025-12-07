@@ -1,0 +1,49 @@
+{
+  "name": "KjosUpdated",
+  "version": "K",
+  "created_at": "2025-12-07T22:44:53.677097+00:00",
+  "actions": [
+    {
+      "type": "apply_headers",
+      "params": {
+        "header_row_index": 2
+      }
+    },
+    {
+      "type": "fix_concatenated",
+      "params": {}
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "^\\s*$",
+        "choice": "Empty",
+        "scope": "first_cell"
+      }
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "^[A-Za-z\\s]+$",
+        "choice": "Letters",
+        "scope": "first_cell"
+      }
+    },
+    {
+      "type": "delete_unwanted_rows",
+      "params": {
+        "pattern": "\\d{6}$",
+        "choice": "Other",
+        "scope": "first_cell"
+      }
+    },
+    {
+      "type": "add_net_item_col",
+      "params": {
+        "retail_price_index": 4,
+        "discount_percent_index": 5
+      }
+    }
+  ],
+  "warnings": []
+}
