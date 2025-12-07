@@ -307,45 +307,8 @@ def _invoke(cfg, params):
     """Dispatcher to execute action's function based on entry in ACTIONS."""
     func = cfg["func"]
     specs = cfg["args"]
-
-    # Find actions that consume working_data
-    uses_working = any(spec == "working_data" for spec in specs)
     ss = st.session_state
-    raw_headers = ss.get("raw_headers")
-    header_idx = ss.get("header_row_index")
-    rows = ss.get("working_data", [])
 
-    # If action uses working_data and a header row is selected,
-    # run the transform on data-only rows (exclude header), then reinsert header unchanged.
-    if uses_working and rows and header_idx is not None:
-        protected = [(i, r) for i, r in enumerate(rows) if r == raw_headers]
-        if protected:
-            protected_indices = {i for i, _ in protected}
-            data_only = [
-                r for i, r in enumerate(rows) if i not in protected_indices]
-
-            # Build args, substituting data_only for working_data
-            call_args = []
-            for spec in specs:
-                if spec == "working_data":
-                    call_args.append(data_only)
-                else:
-                    call_args.append(params.get(spec))
-            try:
-                result = func(*call_args)
-                # If the action returns data, reinsert the header at (min) original index
-                if cfg["returns_data"]:
-                    out = result or data_only
-                    hdr_row = protected[0][1][:]
-                    insert_at = header_idx if header_idx is not None else protected[0][0]
-                    insert_at = max(0, min(insert_at, len(out)))
-                    out = out[:insert_at] + [hdr_row] + out[insert_at:]
-                    return out, []
-                return result, []
-            except Exception as e:
-                return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
-        
-    # Normal path (no header protection needed)
     call_args = []
     for spec in specs:
         if spec == "working_data":
@@ -357,7 +320,7 @@ def _invoke(cfg, params):
         return result, []
     except Exception as e:
         return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
-    
+
 def run_action(action_type, params):
     """
     Use the ACTIONS registry to run all functions, update display,
@@ -367,13 +330,13 @@ def run_action(action_type, params):
     if not cfg:
         st.warning(f"Unknown action: {action_type}")
         return
-    
+
     # Validate required params
     missing = [req for req in cfg["required"] if params.get(req) is None]
     if missing:
         st.warning(f"Missing {', '.join(missing)} for {action_type}")
         return
-    
+
     # Log once
     save_action_state(action_type, action_label(action_type, params), params=params)
 
