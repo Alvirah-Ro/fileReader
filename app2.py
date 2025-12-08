@@ -11,6 +11,16 @@ from table_functions import (reset_all, save_template_to_disk, build_template_fr
                              action_label, undo_last_action, undo_to_action_id,
                              redo_last_action, run_action)
 
+# Reusable regex/text mappings for row/column deletion
+DELETE_VALUE_MAPPING = {
+    "Empty": r"^\s*$",  # empty or whitespace-only
+    "Letters": r"^[A-Za-z\s]+$",  # only letters and spaces
+    "Numbers": r"^[\d\s.,]+$",  # only numbers, spaces, commas, periods
+    "Symbols": r"^[^\w\s]+$",  # only symbols (no letters or numbers)
+    "Word: None": r"(?i)^\s*None\s*$", # literal word 'None' (case-insensitive)
+}
+
+
 st.title('Automated PDF Table Extractor: Version K')
 
 # File uploader for PDF invoice
@@ -141,18 +151,19 @@ if uploaded_file is not None:
 
                 # Delete unwanted rows without real data
                 with st.expander("Delete Rows"):
+                    custom_pattern = ""
                     # Input for choosing rows to delete
                     delete_row_input = st.radio("Select which rows to delete - First cells (Column 1) should not include these values:",
-                                ["Empty", "Letters", "Numbers", "Symbols", "Other"],
+                                ["Empty", "Word: None", "Letters", "Numbers", "Symbols", "Other"],
                                 index=None,)
                     
-                    # Show text input if "Other" is selected
-                    search_pattern = None
-                    custom_pattern = None
                     if delete_row_input == "Other":
                         custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
                                                     placeholder="e.g. Total|Subtotal or ^\\d{6}$' or ^Page \\d+",
                                                     help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
+                        
+                    search_pattern = DELETE_VALUE_MAPPING.get(delete_row_input, custom_pattern)
+                    
                                                     
                     if st.button("Delete unwanted rows", key="del_rows_btn", type="primary"):
                         if delete_row_input is None:
@@ -161,18 +172,9 @@ if uploaded_file is not None:
                         if delete_row_input == "Other" and (not custom_pattern or custom_pattern.strip() == ""):
                             st.error("Please enter a custom pattern when 'Other' is selected")
                             st.stop()# Early exit to halt remainder of script for this rerun
-                        
-                        # Map choice to regex with a dictionary
-                        mapping = {
-                            "Empty": r"^\s*$",  # Match empty or whitespace-only cells
-                            "Letters": r"^[A-Za-z\s]+$",  # Match cells with only letters and spaces
-                            "Numbers": r"^[\d\s.,]+$",  # Match cells with only numbers, spaces, commas, periods
-                            "Symbols": r"^[^\w\s]+$"  # Match cells with only symbols (no letters or numbers)
-                        }
-                        search_pattern = mapping.get(delete_row_input, custom_pattern
-                                                    )
+                            
                         # Save current state before applying changes
-                        params={                                
+                        params = {                                
                             'pattern': search_pattern,
                             'choice': delete_row_input, # optional (e.g., 'letters', 'numbers', 'other')
                             'scope': 'first_cell'
@@ -186,6 +188,47 @@ if uploaded_file is not None:
             with tab3:
 
                 with st.expander("Alter columns"):
+                    st.write("Delete Columns")
+                    custom_pattern = ""
+
+                    delete_col_input = st.radio("Select which columns to delete - columns should not include these values:",
+                                ["Empty", "Word: None", "Letters", "Numbers", "Symbols", "Other"],
+                                index=None,)
+                    
+                    if delete_col_input == "Other":
+                        custom_pattern = st.text_input("Enter custom regex pattern or text to search for:",
+                                                    placeholder="e.g. Total|Subtotal or ^\\d{6}$' or ^Page \\d+",
+                                                    help="Use regex patterns or plain text. Examples: 'Total' (exact match), '^\\d{6}$' (6 digit numbers)")
+                        
+                    search_pattern = DELETE_VALUE_MAPPING.get(delete_col_input, custom_pattern)
+                    
+                                                    
+                    if st.button("Delete unwanted columns", key="del_cols_btn", type="primary"):
+                        if delete_col_input is None:
+                            st.error("Please select a column type to delete first")
+                            st.stop() # Early exit to halt remainder of script for this rerun
+                        if delete_col_input == "Other" and (not custom_pattern or custom_pattern.strip() == ""):
+                            st.error("Please enter a custom pattern when 'Other' is selected")
+                            st.stop()# Early exit to halt remainder of script for this rerun
+                            
+                        # Save current state before applying changes
+                        params = {                                
+                            'pattern': search_pattern,
+                            'choice': delete_col_input, # optional (e.g., 'letters', 'numbers', 'other')
+                            'scope': 'column'
+                        }
+                        run_action("delete_unwanted_cols", params)
+                        if 'debug_matched_cols' in st.session_state:
+                            st.write("Rows that matched pattern:", st.session_state.debug_matched_cols)
+                            del st.session_state.debug_matched_cols
+                        st.toast(f"Deleted columns that contain: {delete_col_input if delete_col_input != 'other' else custom_pattern}")
+                        st.rerun()
+
+
+
+
+
+
                     with st.form("add_net_form"):
                         st.write("Add a Net-per-Item Column")
                         retail_price_input = st.number_input("Column number for retail price (1 = first column)",

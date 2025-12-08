@@ -184,7 +184,12 @@ def delete_unwanted_rows(search_pattern):
     return kept_rows
 
 def delete_unwanted_cols(search_pattern):
-    """Delete columns that don't contain actual data - pick by input"""
+    """
+    Delete columns that don't contain actual data - pick by input
+    If no headers, delete columns where all cells match the pattern.
+    Returns updated working_data (list of rows.)
+    """
+    
     kept_cols = []
     matched_cols = []
 
