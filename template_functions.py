@@ -132,7 +132,7 @@ def _invoke(cfg, params):
             return result, []
         except Exception as e:
             return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
-        
+
     # Normal path (no header protection needed)
     call_args = []
     for spec in specs:
@@ -145,7 +145,7 @@ def _invoke(cfg, params):
         return result, []
     except Exception as e:
         return None, [f"Error invoking {getattr(func, '__name__', 'action')}: {e}"]
-    
+
 def run_action(action_type, params):
     """
     Use the ACTIONS registry to run all functions, update display,
@@ -155,13 +155,13 @@ def run_action(action_type, params):
     if not cfg:
         st.warning(f"Unknown action: {action_type}")
         return
-    
+
     # Validate required params
     missing = [req for req in cfg["required"] if params.get(req) is None]
     if missing:
         st.warning(f"Missing {', '.join(missing)} for {action_type}")
         return
-    
+
     # Log once
     save_action_state(action_type, action_label(action_type, params), params=params)
 

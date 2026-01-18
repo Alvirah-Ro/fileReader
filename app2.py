@@ -212,7 +212,7 @@ if uploaded_file is not None:
                             st.stop()# Early exit to halt remainder of script for this rerun
                             
                         # Save current state before applying changes
-                        params = {                                
+                        params = {                       
                             'pattern': search_pattern,
                             'choice': delete_col_input, # optional (e.g., 'letters', 'numbers', 'other')
                             'scope': 'column'
